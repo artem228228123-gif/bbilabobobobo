@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Избранные объявления на АЙДА — премиальной доске объявлений">
+    <meta name="theme-color" content="#007aff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AЙДA - Избранное">
+    <title>Избранное — AЙДA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ========== APPLE ПРЕМИУМ СИСТЕМА ========== */
+        :root {
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f9f9fb;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #8e8e93;
+            --border: rgba(0, 0, 0, 0.06);
+            --border-focus: rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border);
+            --shadow-lg: 0 20px 38px -10px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+            --accent: #007aff;
+            --accent-grad: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(0,122,255,0.12) 0%, rgba(88,86,214,0.12) 100%);
+            --danger: #ff3b30;
+            --danger-grad: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --blur-bg: rgba(255, 255, 255, 0.72);
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --radius-full: 100px;
+            --transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            --transition-bounce: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #000000;
+            --bg-secondary: #1c1c1e;
+            --bg-tertiary: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-tertiary: #636366;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-focus: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+            --card-bg: rgba(28, 28, 30, 0.92);
+            --blur-bg: rgba(28, 28, 30, 0.78);
+            --accent: #0a84ff;
+            --accent-grad: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(10,132,255,0.15) 0%, rgba(94,92,230,0.15) 100%);
+        }
+
+        body {
+            font-family: -apple-system, 'Inter', system-ui, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.4s ease, color 0.3s ease;
+        }
+
+        /* ========== ХЕДЕР ========== */
+        .header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(24px) saturate(180%);
+            background: var(--blur-bg);
+            border-bottom: 0.5px solid var(--border);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .search-wrapper {
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .search-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            border: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            transition: var(--transition);
+        }
+
+        .search-container:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 8px var(--spacing-sm);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .search-btn, .photo-search-btn {
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: var(--radius-full);
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .search-btn:hover, .photo-search-btn:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .city-selector {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 8px var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+        }
+
+        .city-selector:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            position: relative;
+        }
+
+        .header-action {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 6px;
+            transition: var(--transition-bounce);
+            position: relative;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-action:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .header-action.active {
+            background: var(--accent-grad);
+            color: white;
+        }
+
+        .badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ff3b30;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 20px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .add-listing-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .add-listing-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .profile-btn {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: var(--transition-bounce);
+        }
+
+        .profile-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+        }
+
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        /* Dropdown */
+        .profile-dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: var(--spacing-sm);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            width: 240px;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+            z-index: 100;
+            transform: translateY(-8px);
+        }
+
+        .profile-dropdown:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .dropdown-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .dropdown-name {
+            font-weight: 600;
+        }
+
+        .dropdown-email {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: var(--transition);
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .dropdown-item:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        hr {
+            border: none;
+            border-top: 0.5px solid var(--border);
+            margin: var(--spacing-xs) 0;
+        }
+
+        /* ========== ВСПЛЫВАЮЩИЕ ПОДСКАЗКИ ========== */
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            font-size: 0.7rem;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            white-space: nowrap;
+            box-shadow: var(--shadow-md);
+            border: 0.5px solid var(--border);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            z-index: 150;
+            font-family: inherit;
+        }
+
+        [data-tooltip]:hover::before {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        /* ========== ЕДИНЫЙ СТИЛЬ КНОПОК ========== */
+        .btn-primary {
+            background: var(--accent-grad);
+            border: none;
+            padding: 10px 24px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 0.5px solid var(--border);
+            padding: 10px 24px;
+            border-radius: var(--radius-full);
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-grad-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-danger {
+            background: var(--danger-grad);
+            border: none;
+            padding: 10px 24px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-danger:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger:active {
+            transform: scale(0.98);
+        }
+
+        /* ========== ОСНОВНОЙ КОНТЕНТ ========== */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-xl) var(--spacing-lg);
+        }
+
+        .favorites-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xl);
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+        }
+
+        .favorites-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .favorites-actions {
+            display: flex;
+            gap: var(--spacing-md);
+        }
+
+        /* Фильтры */
+        .favorites-filters {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-lg);
+            border: 0.5px solid var(--border);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-secondary);
+        }
+
+        /* Селекты и инпуты без стрелок */
+        .filter-select {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .filter-select::-ms-expand {
+            display: none;
+        }
+
+        .filter-input {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        /* Убираем стрелки у полей ввода цены */
+        .filter-input[type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .filter-input[type="number"]::-webkit-inner-spin-button,
+        .filter-input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        /* Сетка избранного */
+        .favorites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        /* Скелетон */
+        .favorites-skeleton {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .skeleton-card {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            height: 340px;
+            animation: pulse 1.5s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Карточка объявления */
+        .favorite-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition-bounce);
+            border: 0.5px solid var(--border);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .favorite-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .favorite-card:hover::before {
+            left: 100%;
+        }
+
+        .favorite-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-image {
+            position: relative;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .favorite-card:hover .card-image img {
+            transform: scale(1.05);
+        }
+
+        .remove-favorite {
+            position: absolute;
+            top: var(--spacing-sm);
+            right: var(--spacing-sm);
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .remove-favorite:hover {
+            background: var(--danger);
+            transform: scale(1.1);
+        }
+
+        .card-badge {
+            position: absolute;
+            top: var(--spacing-sm);
+            left: var(--spacing-sm);
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            z-index: 2;
+        }
+
+        .card-content {
+            padding: var(--spacing-md);
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .card-price {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 8px 0;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        /* Пустое состояние */
+        .favorites-empty {
+            text-align: center;
+            padding: var(--spacing-2xl);
+            color: var(--text-secondary);
+        }
+
+        .favorites-empty i {
+            font-size: 4rem;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.5;
+        }
+
+        .favorites-empty a {
+            display: inline-block;
+            margin-top: var(--spacing-lg);
+            text-decoration: none;
+        }
+
+        /* Модалки */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 480px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            border: 0.5px solid var(--border);
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .modal-close:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: flex-end;
+            margin-top: var(--spacing-lg);
+        }
+
+        .success-icon {
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        /* Помощь */
+        .help-question h4 {
+            font-size: 1rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .help-question p {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .help-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 0.5px solid var(--border);
+        }
+
+        .help-prev, .help-next {
+            background: none;
+            border: none;
+            padding: var(--spacing-xs) var(--spacing-md);
+            cursor: pointer;
+            color: var(--accent);
+            font-weight: 500;
+            border-radius: var(--radius-full);
+            transition: var(--transition);
+        }
+
+        .help-prev:disabled, .help-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .help-prev:hover:not(:disabled), .help-next:hover:not(:disabled) {
+            background: var(--accent-grad-light);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-full);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            font-size: 0.85rem;
+            animation: toastIn 0.3s ease;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Футер */
+        .footer {
+            background: var(--bg-tertiary);
+            border-top: 0.5px solid var(--border);
+            padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xl);
+            justify-content: space-between;
+        }
+
+        .footer-column h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .footer-column a, .footer-column button {
+            display: block;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            margin-bottom: var(--spacing-sm);
+            transition: var(--transition);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .footer-column a:hover, .footer-column button:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            width: 100%;
+            text-align: center;
+            padding-top: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+            border-top: 0.5px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        /* Адаптив */
+        @media (max-width: 768px) {
+            .header-container { gap: var(--spacing-sm); }
+            .add-text { display: none; }
+            .add-listing-btn { padding: 6px 14px; }
+            .favorites-header { flex-direction: column; align-items: flex-start; }
+            .favorites-actions { width: 100%; justify-content: space-between; }
+            .favorites-filters { flex-direction: column; }
+            .filter-group { width: 100%; }
+            .favorites-grid { gap: var(--spacing-md); }
+        }
+
+        @media (min-width: 1024px) {
+            .favorites-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <a href="/" class="logo">AЙДA</a>
+            <div class="search-wrapper">
+                <div class="search-container">
+                    <input type="text" id="search-input" class="search-input" placeholder="Поиск...">
+                    <button class="search-btn"><i class="fas fa-search"></i></button>
+                    <button class="photo-search-btn"><i class="fas fa-camera"></i></button>
+                </div>
+            </div>
+            <button class="city-selector"><i class="fas fa-map-marker-alt"></i> Москва <i class="fas fa-chevron-down"></i></button>
+            <div class="header-actions">
+                <a href="/favorites.html" class="header-action active" data-tooltip="Избранное"><i class="fas fa-heart"></i><span class="badge">3</span></a>
+                <a href="/notifications.html" class="header-action" data-tooltip="Уведомления"><i class="far fa-bell"></i><span class="badge">5</span></a>
+                <a href="/chats.html" class="header-action" data-tooltip="Чаты"><i class="far fa-comment"></i><span class="badge">2</span></a>
+                <a href="/add-listing.html" class="add-listing-btn" data-tooltip="Разместить объявление"><i class="fas fa-plus"></i> <span class="add-text">Разместить</span></a>
+                <div class="profile-dropdown">
+                    <button class="profile-btn" data-tooltip="Профиль">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="profile-avatar">
+                    </button>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-header">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="dropdown-avatar">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-name">Алексей</div>
+                                <div class="dropdown-email">alex@example.com</div>
+                            </div>
+                        </div>
+                        <hr>
+                        <a href="/profile.html?tab=listings" class="dropdown-item"><i class="fas fa-list"></i> Мои объявления</a>
+                        <a href="/favorites.html" class="dropdown-item"><i class="fas fa-heart"></i> Избранное</a>
+                        <a href="/chats.html" class="dropdown-item"><i class="fas fa-comment"></i> Чаты</a>
+                        <a href="/profile.html?tab=stats" class="dropdown-item"><i class="fas fa-chart-line"></i> Статистика</a>
+                        <a href="/profile.html?tab=settings" class="dropdown-item"><i class="fas fa-cog"></i> Настройки</a>
+                        <hr>
+                        <button id="logout-btn" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+                    </div>
+                </div>
+                <button id="theme-toggle" class="theme-toggle" data-tooltip="Тёмная тема"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="favorites-container">
+            <div class="favorites-header">
+                <h1><i class="fas fa-heart"></i> Избранное</h1>
+                <div class="favorites-actions">
+                    <button id="clear-favorites-btn" class="btn-secondary" data-tooltip="Удалить все объявления из избранного"><i class="fas fa-trash-alt"></i> Очистить всё</button>
+                    <button id="export-favorites-btn" class="btn-secondary" data-tooltip="Экспортировать список в CSV"><i class="fas fa-download"></i> Экспорт CSV</button>
+                </div>
+            </div>
+
+            <div class="favorites-filters">
+                <div class="filter-group">
+                    <label><i class="fas fa-sort"></i> Сортировать по</label>
+                    <select id="sort-favorites" class="filter-select">
+                        <option value="created_desc">Дате добавления (новые)</option>
+                        <option value="created_asc">Дате добавления (старые)</option>
+                        <option value="price_asc">Цене (сначала дешёвые)</option>
+                        <option value="price_desc">Цене (сначала дорогие)</option>
+                        <option value="title_asc">Названию (А-Я)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-folder"></i> Категория</label>
+                    <select id="filter-category" class="filter-select">
+                        <option value="">Все категории</option>
+                        <option value="electronics">Электроника</option>
+                        <option value="realty">Недвижимость</option>
+                        <option value="auto">Авто</option>
+                        <option value="services">Услуги</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-ruble-sign"></i> Цена от</label>
+                    <input type="number" id="filter-price-min" class="filter-input" placeholder="0">
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-ruble-sign"></i> Цена до</label>
+                    <input type="number" id="filter-price-max" class="filter-input" placeholder="Любая">
+                </div>
+                <button id="apply-favorites-filter" class="btn-primary" data-tooltip="Применить фильтры"><i class="fas fa-search"></i> Применить</button>
+            </div>
+
+            <div id="favorites-skeleton" class="favorites-skeleton">
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+            </div>
+
+            <div id="favorites-empty" class="favorites-empty" style="display: none;">
+                <i class="far fa-heart"></i>
+                <h3>Избранное пусто</h3>
+                <p>Добавляйте понравившиеся объявления в избранное, они появятся здесь</p>
+                <a href="/" class="btn-primary">На главную</a>
+            </div>
+
+            <div id="favorites-container" class="favorites-grid"></div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-column">
+                <h4>О проекте</h4>
+                <a href="/about.html">О нас</a>
+                <a href="/contact.html">Контакты</a>
+            </div>
+            <div class="footer-column">
+                <h4>Правила</h4>
+                <a href="/terms.html">Пользовательское соглашение</a>
+                <a href="/privacy.html">Политика конфиденциальности</a>
+                <a href="/offer.html">Публичная оферта</a>
+            </div>
+            <div class="footer-column">
+                <h4>Помощь</h4>
+                <button id="help-btn" class="help-link" data-tooltip="Открыть справку"><i class="fas fa-question-circle"></i> Помощь</button>
+            </div>
+            <div class="footer-bottom">
+                <div class="copyright">© 2025 AЙДA. Все права защищены.</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Модалки -->
+    <div id="clear-confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-trash-alt"></i> Очистить избранное?</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить все объявления из избранного? Это действие необратимо.</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary cancel-clear">Отмена</button>
+                    <button class="btn-danger confirm-clear">Очистить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question-circle"></i> Помощь</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="help-question active" id="help-q1">
+                    <h4>Как добавить в избранное?</h4>
+                    <p>Нажмите на сердечко на карточке объявления или на странице объявления.</p>
+                </div>
+                <div class="help-question" style="display: none;" id="help-q2">
+                    <h4>Как удалить из избранного?</h4>
+                    <p>Нажмите на крестик на карточке в избранном или снова нажмите на сердечко на странице объявления.</p>
+                </div>
+                <div class="help-question" style="display: none;" id="help-q3">
+                    <h4>Как экспортировать избранное?</h4>
+                    <p>Нажмите кнопку «Экспорт CSV» — вы получите файл со списком избранных объявлений.</p>
+                </div>
+                <div class="help-nav">
+                    <button class="help-prev" id="help-prev" disabled><i class="fas fa-arrow-left"></i> Назад</button>
+                    <span class="help-counter"><span id="help-current">1</span>/3</span>
+                    <button class="help-next" id="help-next">Далее <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="success-icon"><i class="fas fa-check-circle" style="color: #34c759; font-size: 4rem;"></i></div>
+                <h3 id="success-title" style="text-align: center;">Успешно!</h3>
+                <p id="success-message" style="text-align: center; color: var(--text-secondary);"></p>
+                <div class="modal-actions" style="justify-content: center;">
+                    <button class="btn-primary success-close">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // Тёмная тема
+        const themeToggle = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark') root.setAttribute('data-theme', 'dark');
+        
+        themeToggle.addEventListener('click', () => {
+            if (root.getAttribute('data-theme') === 'dark') {
+                root.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                root.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        });
+
+        // Мок-данные избранного
+        let favorites = [
+            { id: 1, title: "iPhone 15 Pro", price: 89990, city: "Москва", image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=300&fit=crop", category: "electronics", addedAt: "2024-01-15", likes: 124 },
+            { id: 2, title: "MacBook Pro M3", price: 189990, city: "Санкт-Петербург", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop", category: "electronics", addedAt: "2024-01-14", likes: 89 },
+            { id: 3, title: "Квартира-студия", price: 12500000, city: "Москва", image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&fit=crop", category: "realty", addedAt: "2024-01-13", likes: 56 },
+            { id: 4, title: "Sony PlayStation 5", price: 59990, city: "Казань", image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&h=300&fit=crop", category: "electronics", addedAt: "2024-01-12", likes: 234 },
+        ];
+
+        let filteredFavorites = [...favorites];
+        let currentSort = "created_desc";
+        let currentCategory = "";
+        let priceMin = "";
+        let priceMax = "";
+
+        function filterAndSortFavorites() {
+            let result = [...favorites];
+            
+            if (currentCategory) {
+                result = result.filter(item => item.category === currentCategory);
+            }
+            if (priceMin) {
+                result = result.filter(item => item.price >= parseInt(priceMin));
+            }
+            if (priceMax) {
+                result = result.filter(item => item.price <= parseInt(priceMax));
+            }
+            
+            result.sort((a, b) => {
+                switch (currentSort) {
+                    case "created_desc": return new Date(b.addedAt) - new Date(a.addedAt);
+                    case "created_asc": return new Date(a.addedAt) - new Date(b.addedAt);
+                    case "price_asc": return a.price - b.price;
+                    case "price_desc": return b.price - a.price;
+                    case "title_asc": return a.title.localeCompare(b.title);
+                    default: return 0;
+                }
+            });
+            
+            filteredFavorites = result;
+            renderFavorites();
+        }
+
+        function renderFavorites() {
+            const container = document.getElementById('favorites-container');
+            const skeleton = document.getElementById('favorites-skeleton');
+            const emptyState = document.getElementById('favorites-empty');
+            
+            if (filteredFavorites.length === 0) {
+                container.style.display = 'none';
+                skeleton.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'grid';
+            skeleton.style.display = 'none';
+            emptyState.style.display = 'none';
+            
+            container.innerHTML = filteredFavorites.map(item => `
+                <div class="favorite-card" data-id="${item.id}">
+                    <div class="card-image">
+                        <img src="${item.image}" alt="${item.title}" loading="lazy">
+                        <button class="remove-favorite" data-id="${item.id}" data-tooltip="Удалить из избранного"><i class="fas fa-times"></i></button>
+                        <span class="card-badge"><i class="fas fa-star"></i> В избранном</span>
+                    </div>
+                    <div class="card-content">
+                        <h3 class="card-title">${escapeHtml(item.title)}</h3>
+                        <div class="card-price">${item.price.toLocaleString()} ₽</div>
+                        <div class="card-footer">
+                            <span><i class="fas fa-map-marker-alt"></i> ${escapeHtml(item.city)}</span>
+                            <span><i class="fas fa-heart" style="color: #ff3b30;"></i> ${item.likes}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.favorite-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('.remove-favorite')) {
+                        window.location.href = `/listing.html?id=${card.dataset.id}`;
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.remove-favorite').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    removeFromFavorites(id);
+                });
+            });
+        }
+
+        function removeFromFavorites(id) {
+            favorites = favorites.filter(item => item.id !== id);
+            filterAndSortFavorites();
+            showToast('Объявление удалено из избранного', 'success');
+            updateBadge();
+        }
+
+        function clearAllFavorites() {
+            favorites = [];
+            filterAndSortFavorites();
+            showToast('Избранное очищено', 'success');
+            updateBadge();
+        }
+
+        function exportToCSV() {
+            if (filteredFavorites.length === 0) {
+                showToast('Нет объявлений для экспорта', 'error');
+                return;
+            }
+            
+            const headers = ['ID', 'Название', 'Цена', 'Город', 'Дата добавления'];
+            const rows = filteredFavorites.map(item => [item.id, item.title, item.price, item.city, item.addedAt]);
+            const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.setAttribute('download', 'favorites.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('Экспорт завершён', 'success');
+        }
+
+        function updateBadge() {
+            const badge = document.querySelector('.header-action.active .badge');
+            if (badge) {
+                if (favorites.length > 0) {
+                    badge.textContent = favorites.length;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showSuccessModal(title, message) {
+            document.getElementById('success-title').textContent = title;
+            document.getElementById('success-message').textContent = message;
+            document.getElementById('success-modal').classList.add('active');
+        }
+
+        // Инициализация фильтров
+        document.getElementById('sort-favorites').addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            filterAndSortFavorites();
+        });
+        
+        document.getElementById('filter-category').addEventListener('change', (e) => {
+            currentCategory = e.target.value;
+            filterAndSortFavorites();
+        });
+        
+        document.getElementById('apply-favorites-filter').addEventListener('click', () => {
+            priceMin = document.getElementById('filter-price-min').value;
+            priceMax = document.getElementById('filter-price-max').value;
+            filterAndSortFavorites();
+        });
+        
+        document.getElementById('clear-favorites-btn').addEventListener('click', () => {
+            document.getElementById('clear-confirm-modal').classList.add('active');
+        });
+        
+        document.getElementById('export-favorites-btn').addEventListener('click', exportToCSV);
+        
+        document.querySelector('.cancel-clear').addEventListener('click', () => {
+            document.getElementById('clear-confirm-modal').classList.remove('active');
+        });
+        
+        document.querySelector('.confirm-clear').addEventListener('click', () => {
+            clearAllFavorites();
+            document.getElementById('clear-confirm-modal').classList.remove('active');
+        });
+
+        // Модалки
+        function initModals() {
+            document.querySelectorAll('.modal-close, .success-close').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const modal = btn.closest('.modal');
+                    if (modal) modal.classList.remove('active');
+                });
+            });
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) modal.classList.remove('active');
+                });
+            });
+        }
+
+        // Помощь
+        function initHelpModal() {
+            const helpBtn = document.getElementById('help-btn');
+            const helpModal = document.getElementById('help-modal');
+            let current = 1;
+            const prevBtn = document.getElementById('help-prev');
+            const nextBtn = document.getElementById('help-next');
+            const currentSpan = document.getElementById('help-current');
+            
+            helpBtn.onclick = () => helpModal.classList.add('active');
+            helpModal.querySelector('.modal-close').onclick = () => helpModal.classList.remove('active');
+            
+            prevBtn.onclick = () => {
+                if (current > 1) {
+                    document.getElementById(`help-q${current}`).style.display = 'none';
+                    current--;
+                    document.getElementById(`help-q${current}`).style.display = 'block';
+                    currentSpan.textContent = current;
+                    nextBtn.disabled = false;
+                    if (current === 1) prevBtn.disabled = true;
+                }
+            };
+            
+            nextBtn.onclick = () => {
+                if (current < 3) {
+                    document.getElementById(`help-q${current}`).style.display = 'none';
+                    current++;
+                    document.getElementById(`help-q${current}`).style.display = 'block';
+                    currentSpan.textContent = current;
+                    prevBtn.disabled = false;
+                    if (current === 3) nextBtn.disabled = true;
+                }
+            };
+        }
+
+        // Загрузка
+        setTimeout(() => {
+            document.getElementById('favorites-skeleton').style.display = 'none';
+            filterAndSortFavorites();
+            updateBadge();
+        }, 500);
+
+        initModals();
+        initHelpModal();
+        
+        window.showSuccessModal = showSuccessModal;
+    </script>
+</body>
+</html>

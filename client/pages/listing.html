@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Просмотр объявления на АЙДА — премиальной доске объявлений">
+    <meta name="theme-color" content="#007aff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AЙДA">
+    <title>Объявление — AЙДA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ========== APPLE ПРЕМИУМ СИСТЕМА ========== */
+        :root {
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f9f9fb;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #8e8e93;
+            --border: rgba(0, 0, 0, 0.06);
+            --border-focus: rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border);
+            --shadow-lg: 0 20px 38px -10px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+            --shadow-xl: 0 30px 48px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--border);
+            --accent: #007aff;
+            --accent-grad: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(0,122,255,0.12) 0%, rgba(88,86,214,0.12) 100%);
+            --danger: #ff3b30;
+            --danger-grad: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+            --success: #34c759;
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --blur-bg: rgba(255, 255, 255, 0.72);
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --radius-full: 100px;
+            --transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            --transition-bounce: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #000000;
+            --bg-secondary: #1c1c1e;
+            --bg-tertiary: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-tertiary: #636366;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-focus: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+            --card-bg: rgba(28, 28, 30, 0.92);
+            --blur-bg: rgba(28, 28, 30, 0.78);
+            --accent: #0a84ff;
+            --accent-grad: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(10,132,255,0.15) 0%, rgba(94,92,230,0.15) 100%);
+        }
+
+        body {
+            font-family: -apple-system, 'Inter', system-ui, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.4s ease, color 0.3s ease;
+        }
+
+        /* ========== ХЕДЕР ========== */
+        .header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(24px) saturate(180%);
+            background: var(--blur-bg);
+            border-bottom: 0.5px solid var(--border);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .search-wrapper {
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .search-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            border: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            transition: var(--transition);
+        }
+
+        .search-container:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 8px var(--spacing-sm);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .search-btn, .photo-search-btn {
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: var(--radius-full);
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .search-btn:hover, .photo-search-btn:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .city-selector {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 8px var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+        }
+
+        .city-selector:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            position: relative;
+        }
+
+        .header-action {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 6px;
+            transition: var(--transition-bounce);
+            position: relative;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-action:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ff3b30;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 20px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .add-listing-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .add-listing-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .profile-btn {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: var(--transition-bounce);
+        }
+
+        .profile-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+        }
+
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        /* Dropdown */
+        .profile-dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: var(--spacing-sm);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            width: 240px;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+            z-index: 100;
+            transform: translateY(-8px);
+        }
+
+        .profile-dropdown:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .dropdown-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .dropdown-name {
+            font-weight: 600;
+        }
+
+        .dropdown-email {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: var(--transition);
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .dropdown-item:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        hr {
+            border: none;
+            border-top: 0.5px solid var(--border);
+            margin: var(--spacing-xs) 0;
+        }
+
+        /* ========== ВСПЛЫВАЮЩИЕ ПОДСКАЗКИ ========== */
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            font-size: 0.7rem;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            white-space: nowrap;
+            box-shadow: var(--shadow-md);
+            border: 0.5px solid var(--border);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            z-index: 150;
+            font-family: inherit;
+        }
+
+        [data-tooltip]:hover::before {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        /* ========== ОСНОВНОЙ КОНТЕНТ ========== */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-xl) var(--spacing-lg);
+        }
+
+        /* Скелетон */
+        .listing-skeleton {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xl);
+        }
+
+        .skeleton-gallery {
+            flex: 1.2;
+            min-width: 300px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-xl);
+            height: 400px;
+            animation: pulse 1.5s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-info {
+            flex: 1;
+            min-width: 300px;
+            height: 400px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-xl);
+            animation: pulse 1.5s ease-in-out infinite 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-seller {
+            width: 100%;
+            height: 200px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-xl);
+            animation: pulse 1.5s ease-in-out infinite 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-gallery::after, .skeleton-info::after, .skeleton-seller::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Детали объявления */
+        .listing-detail {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xl);
+        }
+
+        /* Галерея */
+        .listing-gallery {
+            flex: 1.2;
+            min-width: 300px;
+        }
+
+        .main-image {
+            position: relative;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            aspect-ratio: 1/1;
+            cursor: pointer;
+        }
+
+        .main-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-list {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .thumbnail {
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .thumbnail.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        }
+
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Информация */
+        .listing-info {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .listing-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .listing-price {
+            font-size: 2rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .listing-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-lg);
+            padding: var(--spacing-md) 0;
+            border-top: 0.5px solid var(--border);
+            border-bottom: 0.5px solid var(--border);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .listing-description {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .listing-description h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .listing-description p {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Характеристики */
+        .listing-specs {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .listing-specs h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--spacing-sm);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .spec-label {
+            color: var(--text-secondary);
+        }
+
+        .spec-value {
+            font-weight: 500;
+        }
+
+        /* Кнопки действий */
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .btn-primary {
+            background: var(--accent-grad);
+            border: none;
+            padding: 12px 28px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 0.5px solid var(--border);
+            padding: 12px 28px;
+            border-radius: var(--radius-full);
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-grad-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .btn-danger {
+            background: var(--danger-grad);
+            border: none;
+            padding: 12px 28px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-danger:hover {
+            transform: scale(1.02);
+        }
+
+        .icon-btn {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .icon-btn:hover {
+            background: var(--accent-grad-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        /* Продавец */
+        .seller-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl);
+            border: 0.5px solid var(--border);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .seller-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .seller-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent);
+        }
+
+        .seller-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .seller-rating {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            margin-top: 4px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .seller-rating i {
+            color: #ff9500;
+        }
+
+        .seller-stats {
+            display: flex;
+            gap: var(--spacing-lg);
+            padding: var(--spacing-md) 0;
+            border-top: 0.5px solid var(--border);
+            border-bottom: 0.5px solid var(--border);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .seller-stat {
+            text-align: center;
+        }
+
+        .seller-stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .seller-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        /* Карта */
+        .listing-map {
+            margin-top: var(--spacing-xl);
+        }
+
+        .listing-map h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .map-container {
+            height: 300px;
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            border: 0.5px solid var(--border);
+        }
+
+        /* Модалки */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 500px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            border: 0.5px solid var(--border);
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        .modal-sm {
+            max-width: 400px;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .modal-close:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: flex-end;
+            margin-top: var(--spacing-lg);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.85rem;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .input-field {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        /* Шаринг */
+        .share-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .share-option {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .share-option:hover {
+            background: var(--accent-grad-light);
+            border-color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .share-icon {
+            font-size: 2rem;
+        }
+
+        /* QR код */
+        .qr-body {
+            text-align: center;
+        }
+
+        .qr-code {
+            display: flex;
+            justify-content: center;
+            margin: var(--spacing-lg) 0;
+        }
+
+        /* Помощь */
+        .help-question h4 {
+            font-size: 1rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .help-question p {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .help-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 0.5px solid var(--border);
+        }
+
+        .help-prev, .help-next {
+            background: none;
+            border: none;
+            padding: var(--spacing-xs) var(--spacing-md);
+            cursor: pointer;
+            color: var(--accent);
+            font-weight: 500;
+            border-radius: var(--radius-full);
+            transition: var(--transition);
+        }
+
+        .help-prev:disabled, .help-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .help-prev:hover:not(:disabled), .help-next:hover:not(:disabled) {
+            background: var(--accent-grad-light);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-full);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            font-size: 0.85rem;
+            animation: toastIn 0.3s ease;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Футер */
+        .footer {
+            background: var(--bg-tertiary);
+            border-top: 0.5px solid var(--border);
+            padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xl);
+            justify-content: space-between;
+        }
+
+        .footer-column h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .footer-column a, .footer-column button {
+            display: block;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            margin-bottom: var(--spacing-sm);
+            transition: var(--transition);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .footer-column a:hover, .footer-column button:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            width: 100%;
+            text-align: center;
+            padding-top: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+            border-top: 0.5px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        /* Адаптив */
+        @media (max-width: 768px) {
+            .header-container { gap: var(--spacing-sm); }
+            .add-text { display: none; }
+            .add-listing-btn { padding: 6px 14px; }
+            .listing-title { font-size: 1.4rem; }
+            .listing-price { font-size: 1.5rem; }
+            .action-buttons { flex-direction: column; }
+            .btn-primary, .btn-secondary, .btn-danger { width: 100%; justify-content: center; }
+            .thumbnail { width: 60px; height: 60px; }
+            .share-options { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <a href="/" class="logo">AЙДA</a>
+            <div class="search-wrapper">
+                <div class="search-container">
+                    <input type="text" id="search-input" class="search-input" placeholder="Поиск...">
+                    <button class="search-btn"><i class="fas fa-search"></i></button>
+                    <button class="photo-search-btn"><i class="fas fa-camera"></i></button>
+                </div>
+            </div>
+            <button class="city-selector"><i class="fas fa-map-marker-alt"></i> Москва <i class="fas fa-chevron-down"></i></button>
+            <div class="header-actions">
+                <a href="/favorites.html" class="header-action" data-tooltip="Избранное"><i class="far fa-heart"></i><span class="badge">3</span></a>
+                <a href="/notifications.html" class="header-action" data-tooltip="Уведомления"><i class="far fa-bell"></i><span class="badge">5</span></a>
+                <a href="/chats.html" class="header-action" data-tooltip="Чаты"><i class="far fa-comment"></i><span class="badge">2</span></a>
+                <a href="/add-listing.html" class="add-listing-btn" data-tooltip="Разместить объявление"><i class="fas fa-plus"></i> <span class="add-text">Разместить</span></a>
+                <div class="profile-dropdown">
+                    <button class="profile-btn" data-tooltip="Профиль">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="profile-avatar">
+                    </button>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-header">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="dropdown-avatar">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-name">Алексей</div>
+                                <div class="dropdown-email">alex@example.com</div>
+                            </div>
+                        </div>
+                        <hr>
+                        <a href="/profile.html?tab=listings" class="dropdown-item"><i class="fas fa-list"></i> Мои объявления</a>
+                        <a href="/favorites.html" class="dropdown-item"><i class="fas fa-heart"></i> Избранное</a>
+                        <a href="/chats.html" class="dropdown-item"><i class="fas fa-comment"></i> Чаты</a>
+                        <a href="/profile.html?tab=stats" class="dropdown-item"><i class="fas fa-chart-line"></i> Статистика</a>
+                        <a href="/profile.html?tab=settings" class="dropdown-item"><i class="fas fa-cog"></i> Настройки</a>
+                        <hr>
+                        <button id="logout-btn" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+                    </div>
+                </div>
+                <button id="theme-toggle" class="theme-toggle" data-tooltip="Тёмная тема"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div id="listing-skeleton" class="listing-skeleton">
+            <div class="skeleton-gallery"></div>
+            <div class="skeleton-info"></div>
+            <div class="skeleton-seller"></div>
+        </div>
+
+        <div id="listing-detail" class="listing-detail" style="display: none;"></div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-column">
+                <h4>О проекте</h4>
+                <a href="/about.html">О нас</a>
+                <a href="/contact.html">Контакты</a>
+            </div>
+            <div class="footer-column">
+                <h4>Правила</h4>
+                <a href="/terms.html">Пользовательское соглашение</a>
+                <a href="/privacy.html">Политика конфиденциальности</a>
+                <a href="/offer.html">Публичная оферта</a>
+            </div>
+            <div class="footer-column">
+                <h4>Помощь</h4>
+                <button id="help-btn" class="help-link" data-tooltip="Открыть справку"><i class="fas fa-question-circle"></i> Помощь</button>
+            </div>
+            <div class="footer-bottom">
+                <div class="copyright">© 2025 AЙДA. Все права защищены.</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Модалки -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="fas fa-trash-alt"></i> Удалить объявление?</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить это объявление? Это действие необратимо.</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary cancel-delete">Отмена</button>
+                    <button class="btn-danger confirm-delete">Удалить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sold-modal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="fas fa-check-circle"></i> Отметить как проданное?</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Подтвердите, что товар продан. Вы получите +50 бонусов.</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary cancel-sold">Отмена</button>
+                    <button class="btn-primary confirm-sold">Подтвердить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="report-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-flag"></i> Пожаловаться на объявление</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Причина жалобы</label>
+                    <select id="report-reason" class="input-field">
+                        <option value="">Выберите причину</option>
+                        <option value="spam">Спам</option>
+                        <option value="fraud">Мошенничество</option>
+                        <option value="prohibited">Запрещённый товар</option>
+                        <option value="duplicate">Дубликат объявления</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Описание (необязательно)</label>
+                    <textarea id="report-description" class="input-field" rows="3" placeholder="Подробно опишите проблему..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary cancel-report">Отмена</button>
+                    <button class="btn-primary submit-report">Отправить жалобу</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-share-alt"></i> Поделиться объявлением</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="share-options">
+                    <button class="share-option" data-platform="telegram"><div class="share-icon"><i class="fab fa-telegram"></i></div><span>Telegram</span></button>
+                    <button class="share-option" data-platform="whatsapp"><div class="share-icon"><i class="fab fa-whatsapp"></i></div><span>WhatsApp</span></button>
+                    <button class="share-option" data-platform="vk"><div class="share-icon"><i class="fab fa-vk"></i></div><span>VK</span></button>
+                    <button class="share-option" data-platform="copy"><div class="share-icon"><i class="fas fa-link"></i></div><span>Копировать ссылку</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> QR-код объявления</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body qr-body">
+                <div id="qr-code" class="qr-code"></div>
+                <p>Отсканируйте QR-код, чтобы открыть объявление на телефоне</p>
+                <button class="btn-primary download-qr">Сохранить QR-код</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question-circle"></i> Помощь</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="help-question active" id="help-question-1">
+                    <h4>Как связаться с продавцом?</h4>
+                    <p>Нажмите кнопку «Написать продавцу» под ценой. Вы перейдёте в чат, где сможете задать вопросы.</p>
+                </div>
+                <div class="help-question" id="help-question-2" style="display: none;">
+                    <h4>Как добавить в избранное?</h4>
+                    <p>Нажмите на сердечко рядом с ценой. Объявление сохранится в разделе «Избранное».</p>
+                </div>
+                <div class="help-question" id="help-question-3" style="display: none;">
+                    <h4>Что делать если обманули?</h4>
+                    <p>Нажмите кнопку «Пожаловаться» и опишите ситуацию. Модератор рассмотрит жалобу.</p>
+                </div>
+                <div class="help-nav">
+                    <button class="help-prev" id="help-prev" disabled><i class="fas fa-arrow-left"></i> Назад</button>
+                    <span class="help-counter"><span id="help-current">1</span>/3</span>
+                    <button class="help-next" id="help-next">Далее <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // Тёмная тема
+        const themeToggle = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark') root.setAttribute('data-theme', 'dark');
+        
+        themeToggle.addEventListener('click', () => {
+            if (root.getAttribute('data-theme') === 'dark') {
+                root.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                root.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        });
+
+        // Мок-данные объявления
+        const mockListing = {
+            id: 1,
+            title: "iPhone 15 Pro",
+            price: 89990,
+            description: "Отличное состояние, полный комплект, гарантия 1 год. Торг уместен. Телефон использовался аккуратно, всегда в чехле и с защитным стеклом. Батарея 98%. Оригинальная коробка, кабель, документация в комплекте.",
+            city: "Москва",
+            address: "ул. Тверская, 15",
+            hide_address: false,
+            category: "Электроника",
+            views: 245,
+            created_at: "2024-01-15",
+            status: "active",
+            photos: [
+                "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&h=800&fit=crop",
+                "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?w=800&h=800&fit=crop",
+                "https://images.unsplash.com/photo-1592286927505-dced104f4e9c?w=800&h=800&fit=crop"
+            ],
+            specs: { "Год": "2024", "Память": "256GB", "Цвет": "Натуральный титан", "Состояние": "Отличное" },
+            seller: {
+                id: 10,
+                name: "Алексей",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
+                rating: 4.8,
+                reviews: 156,
+                listings_count: 12,
+                registered_at: "2023-01-01"
+            },
+            lat: 55.751244,
+            lng: 37.618423
+        };
+
+        let currentListing = null;
+        let currentPhotoIndex = 0;
+
+        function renderListing(listing) {
+            const container = document.getElementById('listing-detail');
+            const skeleton = document.getElementById('listing-skeleton');
+            
+            container.innerHTML = `
+                <div class="listing-gallery">
+                    <div class="main-image" id="main-image">
+                        <img src="${listing.photos[0]}" alt="${listing.title}">
+                    </div>
+                    <div class="thumbnail-list" id="thumbnail-list">
+                        ${listing.photos.map((photo, idx) => `
+                            <div class="thumbnail ${idx === 0 ? 'active' : ''}" data-index="${idx}">
+                                <img src="${photo}" alt="Фото ${idx + 1}">
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="listing-info">
+                    <h1 class="listing-title">${escapeHtml(listing.title)}</h1>
+                    <div class="listing-price">${listing.price.toLocaleString()} ₽</div>
+                    
+                    <div class="listing-meta">
+                        <div class="meta-item"><i class="fas fa-eye"></i> ${listing.views} просмотров</div>
+                        <div class="meta-item"><i class="fas fa-calendar-alt"></i> ${listing.created_at}</div>
+                        <div class="meta-item"><i class="fas fa-tag"></i> ${listing.category}</div>
+                    </div>
+                    
+                    <div class="listing-description">
+                        <h3>Описание</h3>
+                        <p>${escapeHtml(listing.description)}</p>
+                    </div>
+                    
+                    ${listing.specs && Object.keys(listing.specs).length > 0 ? `
+                        <div class="listing-specs">
+                            <h3>Характеристики</h3>
+                            <div class="specs-grid">
+                                ${Object.entries(listing.specs).map(([key, val]) => `
+                                    <div class="spec-item"><span class="spec-label">${escapeHtml(key)}</span><span class="spec-value">${escapeHtml(val)}</span></div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="action-buttons">
+                        <button id="chat-btn" class="btn-primary" data-tooltip="Написать продавцу"><i class="fas fa-comment"></i> Написать продавцу</button>
+                        <button id="favorite-btn" class="btn-secondary" data-tooltip="Добавить в избранное"><i class="far fa-heart"></i> В избранное</button>
+                        <button id="share-btn" class="icon-btn" data-tooltip="Поделиться"><i class="fas fa-share-alt"></i></button>
+                        <button id="qr-btn" class="icon-btn" data-tooltip="QR-код"><i class="fas fa-qrcode"></i></button>
+                        ${currentListing?.isOwner ? `
+                            <button id="edit-btn" class="btn-secondary" data-tooltip="Редактировать"><i class="fas fa-edit"></i> Редактировать</button>
+                            <button id="sold-btn" class="btn-secondary" data-tooltip="Отметить как проданное"><i class="fas fa-check-circle"></i> Продано</button>
+                            <button id="delete-btn" class="btn-danger" data-tooltip="Удалить объявление"><i class="fas fa-trash-alt"></i> Удалить</button>
+                        ` : ''}
+                        <button id="report-btn" class="icon-btn" data-tooltip="Пожаловаться"><i class="fas fa-flag"></i></button>
+                    </div>
+                </div>
+                
+                <div class="seller-card">
+                    <div class="seller-header">
+                        <img src="${listing.seller.avatar}" class="seller-avatar">
+                        <div>
+                            <div class="seller-name">${escapeHtml(listing.seller.name)}</div>
+                            <div class="seller-rating"><i class="fas fa-star"></i> ${listing.seller.rating} (${listing.seller.reviews} отзывов)</div>
+                        </div>
+                    </div>
+                    <div class="seller-stats">
+                        <div class="seller-stat"><div class="seller-stat-value">${listing.seller.listings_count}</div><div class="seller-stat-label">объявлений</div></div>
+                        <div class="seller-stat"><div class="seller-stat-value">с 2023</div><div class="seller-stat-label">на сайте</div></div>
+                    </div>
+                    <button id="profile-btn" class="btn-secondary" style="width: 100%;"><i class="fas fa-user"></i> Смотреть профиль</button>
+                </div>
+                
+                <div class="listing-map">
+                    <h3><i class="fas fa-map-marker-alt"></i> Местоположение</h3>
+                    <div id="map" class="map-container"></div>
+                </div>
+            `;
+            
+            container.style.display = 'flex';
+            skeleton.style.display = 'none';
+            
+            // Галерея
+            document.querySelectorAll('.thumbnail').forEach(thumb => {
+                thumb.addEventListener('click', () => {
+                    document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
+                    thumb.classList.add('active');
+                    const idx = parseInt(thumb.dataset.index);
+                    currentPhotoIndex = idx;
+                    document.querySelector('.main-image img').src = listing.photos[idx];
+                });
+            });
+            
+            // Карта
+            setTimeout(() => {
+                const mapContainer = document.getElementById('map');
+                if (mapContainer && !mapContainer.innerHTML) {
+                    const map = L.map('map').setView([listing.lat, listing.lng], 15);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                    }).addTo(map);
+                    L.marker([listing.lat, listing.lng]).addTo(map).bindPopup(listing.title);
+                }
+            }, 100);
+            
+            // Кнопки
+            document.getElementById('chat-btn')?.addEventListener('click', () => {
+                window.location.href = `/chats.html?user_id=${listing.seller.id}`;
+            });
+            
+            document.getElementById('favorite-btn')?.addEventListener('click', () => {
+                showToast('Добавлено в избранное', 'success');
+            });
+            
+            document.getElementById('share-btn')?.addEventListener('click', () => {
+                document.getElementById('share-modal').classList.add('active');
+            });
+            
+            document.getElementById('qr-btn')?.addEventListener('click', () => {
+                document.getElementById('qr-modal').classList.add('active');
+                setTimeout(() => {
+                    if (typeof QRCode !== 'undefined' && !document.querySelector('#qr-code canvas')) {
+                        new QRCode(document.getElementById('qr-code'), window.location.href);
+                    }
+                }, 100);
+            });
+            
+            document.getElementById('report-btn')?.addEventListener('click', () => {
+                document.getElementById('report-modal').classList.add('active');
+            });
+            
+            document.getElementById('profile-btn')?.addEventListener('click', () => {
+                window.location.href = `/profile.html?id=${listing.seller.id}`;
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Модалки
+        function initModals() {
+            document.querySelectorAll('.modal-close, .cancel-delete, .cancel-sold, .cancel-report').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const modal = btn.closest('.modal');
+                    if (modal) modal.classList.remove('active');
+                });
+            });
+            
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) modal.classList.remove('active');
+                });
+            });
+            
+            document.querySelector('.confirm-delete')?.addEventListener('click', () => {
+                document.getElementById('delete-modal').classList.remove('active');
+                showToast('Объявление удалено', 'success');
+                setTimeout(() => window.location.href = '/', 1500);
+            });
+            
+            document.querySelector('.confirm-sold')?.addEventListener('click', () => {
+                document.getElementById('sold-modal').classList.remove('active');
+                showToast('Объявление отмечено как проданное! +50 бонусов', 'success');
+            });
+            
+            document.querySelector('.submit-report')?.addEventListener('click', () => {
+                document.getElementById('report-modal').classList.remove('active');
+                showToast('Жалоба отправлена', 'success');
+            });
+            
+            // Шаринг
+            document.querySelectorAll('.share-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const platform = opt.dataset.platform;
+                    const url = window.location.href;
+                    const title = mockListing.title;
+                    
+                    if (platform === 'copy') {
+                        navigator.clipboard.writeText(url);
+                        showToast('Ссылка скопирована', 'success');
+                    } else {
+                        let shareUrl = '';
+                        if (platform === 'telegram') shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+                        if (platform === 'whatsapp') shareUrl = `https://wa.me/?text=${encodeURIComponent(title + ' ' + url)}`;
+                        if (platform === 'vk') shareUrl = `https://vk.com/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`;
+                        if (shareUrl) window.open(shareUrl, '_blank');
+                    }
+                    document.getElementById('share-modal').classList.remove('active');
+                });
+            });
+            
+            // Помощь
+            let helpIndex = 1;
+            const helpPrev = document.getElementById('help-prev');
+            const helpNext = document.getElementById('help-next');
+            const helpCurrent = document.getElementById('help-current');
+            
+            helpNext?.addEventListener('click', () => {
+                if (helpIndex < 3) {
+                    document.getElementById(`help-question-${helpIndex}`).style.display = 'none';
+                    helpIndex++;
+                    document.getElementById(`help-question-${helpIndex}`).style.display = 'block';
+                    helpCurrent.textContent = helpIndex;
+                    helpPrev.disabled = false;
+                    if (helpIndex === 3) helpNext.disabled = true;
+                }
+            });
+            
+            helpPrev?.addEventListener('click', () => {
+                if (helpIndex > 1) {
+                    document.getElementById(`help-question-${helpIndex}`).style.display = 'none';
+                    helpIndex--;
+                    document.getElementById(`help-question-${helpIndex}`).style.display = 'block';
+                    helpCurrent.textContent = helpIndex;
+                    helpNext.disabled = false;
+                    if (helpIndex === 1) helpPrev.disabled = true;
+                }
+            });
+            
+            document.getElementById('help-btn')?.addEventListener('click', () => {
+                document.getElementById('help-modal').classList.add('active');
+            });
+        }
+
+        // Загрузка
+        setTimeout(() => {
+            currentListing = mockListing;
+            renderListing(mockListing);
+        }, 800);
+        
+        initModals();
+    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>

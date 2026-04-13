@@ -1,0 +1,244 @@
+# ============================================
+# AIDA — Премиальная доска объявлений
+# Версия: 3.0 ULTRA
+# Файл: docker/docker-compose.yml
+# Описание: Docker Compose конфигурация для разработки и продакшена
+# ============================================
+
+version: '3.8'
+
+# ============================================
+# НАСТРОЙКИ СЕТЕЙ
+# ============================================
+
+networks:
+  aida-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================
+# НАСТРОЙКИ ТОМОВ (ПЕРСИСТЕНТНОЕ ХРАНЕНИЕ)
+# ============================================
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local
+  backups_data:
+    driver: local
+  logs_data:
+    driver: local
+
+# ============================================
+# СЕРВИСЫ
+# ============================================
+
+services:
+  # ==========================================
+  # POSTGRESQL БАЗА ДАННЫХ
+  # ==========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: aida-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-aida}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-aida123}
+      POSTGRES_DB: ${DB_NAME:-aida}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ../database/seeds:/docker-entrypoint-initdb.d/seeds:ro
+    networks:
+      - aida-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aida} -d ${DB_NAME:-aida}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ==========================================
+  # REDIS ДЛЯ КЕШИРОВАНИЯ И ОЧЕРЕДЕЙ
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: aida-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - aida-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ==========================================
+  # NODE.JS ПРИЛОЖЕНИЕ (API + ФРОНТЕНД)
+  # ==========================================
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: ${NODE_ENV:-development}
+    container_name: aida-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-aida}
+      DB_PASSWORD: ${DB_PASSWORD:-aida123}
+      DB_NAME: ${DB_NAME:-aida}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_change_me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+      - backups_data:/app/backups
+      - logs_data:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aida-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ==========================================
+  # NGINX (РЕВЕРС-ПРОКСИ И СТАТИКА)
+  # ==========================================
+  nginx:
+    image: nginx:alpine
+    container_name: aida-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/sites-available:/etc/nginx/sites-available:ro
+      - ../nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ../client:/var/www/html:ro
+      - uploads_data:/var/www/uploads:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - aida-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # ==========================================
+  # PGADMIN (ОПЦИОНАЛЬНО - УПРАВЛЕНИЕ БД)
+  # ==========================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: aida-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@aida.ru}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - postgres
+    networks:
+      - aida-network
+    profiles:
+      - tools
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # ==========================================
+  # REDIS INSIGHT (ОПЦИОНАЛЬНО - УПРАВЛЕНИЕ REDIS)
+  # ==========================================
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: aida-redis-insight
+    restart: unless-stopped
+    ports:
+      - "${REDIS_INSIGHT_PORT:-5540}:5540"
+    volumes:
+      - redis-insight:/db
+    depends_on:
+      - redis
+    networks:
+      - aida-network
+    profiles:
+      - tools
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+# ============================================
+# ПРОФИЛИ ЗАПУСКА
+# ============================================
+
+# Для разработки:
+# docker-compose --profile dev up -d
+# Для продакшена:
+# docker-compose --profile prod up -d
+# С инструментами:
+# docker-compose --profile tools up -d

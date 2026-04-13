@@ -1,0 +1,439 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/auth.js
+ * Описание: Авторизация, регистрация, восстановление пароля, OAuth
+ */
+
+// ============================================
+// РЕГИСТРАЦИЯ
+// ============================================
+
+async function register(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const name = document.getElementById('reg-name')?.value;
+    const email = document.getElementById('reg-email')?.value;
+    const phone = document.getElementById('reg-phone')?.value;
+    const password = document.getElementById('reg-password')?.value;
+    const passwordConfirm = document.getElementById('reg-password-confirm')?.value;
+    const city = document.getElementById('reg-city')?.value;
+    const agree = document.getElementById('reg-agree')?.checked;
+    
+    // Валидация
+    if (!name || name.length < 2) {
+        showToast('Имя должно содержать минимум 2 символа', 'error');
+        return;
+    }
+    
+    if (!email || !email.includes('@')) {
+        showToast('Введите корректный email', 'error');
+        return;
+    }
+    
+    if (!password || password.length < 6) {
+        showToast('Пароль должен содержать минимум 6 символов', 'error');
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        showToast('Пароли не совпадают', 'error');
+        return;
+    }
+    
+    if (!agree) {
+        showToast('Необходимо согласие с условиями', 'error');
+        return;
+    }
+    
+    // Получаем реферальный код из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const referralCode = urlParams.get('ref');
+    
+    try {
+        const response = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                email,
+                phone: phone || null,
+                password,
+                password_confirm: passwordConfirm,
+                city: city || null,
+                referralCode
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Сохраняем токен
+            localStorage.setItem('token', data.token);
+            
+            showToast('Регистрация успешна! Подтвердите email', 'success');
+            
+            // Перенаправляем на главную
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+        } else {
+            showToast(data.error || 'Ошибка регистрации', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    }
+}
+
+// ============================================
+// ВХОД
+// ============================================
+
+async function login(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('login-email')?.value;
+    const password = document.getElementById('login-password')?.value;
+    
+    if (!email || !password) {
+        showToast('Заполните все поля', 'error');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const submitBtn = document.querySelector('#login-form button[type="submit"]');
+    const originalText = submitBtn?.textContent;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Вход...';
+    }
+    
+    try {
+        const response = await fetch('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            localStorage.setItem('token', data.token);
+            
+            showToast('Добро пожаловать!', 'success');
+            
+            // Перенаправляем на предыдущую страницу или главную
+            const redirect = sessionStorage.getItem('redirectAfterLogin') || '/';
+            sessionStorage.removeItem('redirectAfterLogin');
+            window.location.href = redirect;
+        } else {
+            showToast(data.error || 'Неверный email или пароль', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка входа:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+}
+
+// ============================================
+// ВОССТАНОВЛЕНИЕ ПАРОЛЯ
+// ============================================
+
+async function forgotPassword(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('reset-email')?.value;
+    
+    if (!email) {
+        showToast('Введите email', 'error');
+        return;
+    }
+    
+    const submitBtn = document.querySelector('#forgot-form button[type="submit"]');
+    const originalText = submitBtn?.textContent;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
+    }
+    
+    try {
+        const response = await fetch('/api/v1/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('Ссылка для сброса пароля отправлена на email', 'success');
+            setTimeout(() => {
+                window.location.href = '/login.html';
+            }, 3000);
+        } else {
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+}
+
+async function resetPassword(event) {
+    event.preventDefault();
+    
+    const password = document.getElementById('new-password')?.value;
+    const confirm = document.getElementById('confirm-password')?.value;
+    const code = document.getElementById('reset-code')?.value;
+    
+    if (!password || !confirm) {
+        showToast('Заполните все поля', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showToast('Пароль должен содержать минимум 6 символов', 'error');
+        return;
+    }
+    
+    if (password !== confirm) {
+        showToast('Пароли не совпадают', 'error');
+        return;
+    }
+    
+    const submitBtn = document.querySelector('#reset-form button[type="submit"]');
+    const originalText = submitBtn?.textContent;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Сохранение...';
+    }
+    
+    try {
+        const response = await fetch('/api/v1/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, new_password: password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('Пароль успешно изменён', 'success');
+            setTimeout(() => {
+                window.location.href = '/login.html';
+            }, 2000);
+        } else {
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+}
+
+// ============================================
+// OAuth АВТОРИЗАЦИЯ
+// ============================================
+
+function oauthLogin(provider) {
+    // Сохраняем текущую страницу для возврата
+    sessionStorage.setItem('redirectAfterLogin', window.location.href);
+    
+    // Перенаправляем на OAuth провайдера
+    window.location.href = `/api/v1/auth/${provider}`;
+}
+
+// ============================================
+// ВЫХОД
+// ============================================
+
+async function logout() {
+    try {
+        await fetch('/api/v1/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+    } catch (error) {
+        console.error('Ошибка выхода:', error);
+    }
+    
+    localStorage.removeItem('token');
+    window.location.href = '/';
+}
+
+// ============================================
+// ПРОВЕРКА АВТОРИЗАЦИИ
+// ============================================
+
+function isAuthenticated() {
+    return !!localStorage.getItem('token');
+}
+
+function requireAuth() {
+    if (!isAuthenticated()) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
+        window.location.href = '/login.html';
+        return false;
+    }
+    return true;
+}
+
+// ============================================
+// ПОДТВЕРЖДЕНИЕ EMAIL
+// ============================================
+
+async function verifyEmail(code) {
+    try {
+        const response = await fetch(`/api/v1/auth/verify-email/${code}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('Email подтверждён!', 'success');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        } else {
+            showToast(data.error || 'Ошибка подтверждения', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    }
+}
+
+// ============================================
+// СМЕНА ПАРОЛЯ (АВТОРИЗОВАННЫЙ)
+// ============================================
+
+async function changePassword(event) {
+    event.preventDefault();
+    
+    const oldPassword = document.getElementById('old-password')?.value;
+    const newPassword = document.getElementById('new-password')?.value;
+    const confirmPassword = document.getElementById('confirm-password')?.value;
+    
+    if (!oldPassword || !newPassword || !confirmPassword) {
+        showToast('Заполните все поля', 'error');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showToast('Новый пароль должен содержать минимум 6 символов', 'error');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showToast('Пароли не совпадают', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/auth/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                old_password: oldPassword,
+                new_password: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('Пароль успешно изменён', 'success');
+            document.getElementById('change-password-form')?.reset();
+        } else {
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    }
+}
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+function initAuthPages() {
+    // Форма регистрации
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+        registerForm.addEventListener('submit', register);
+    }
+    
+    // Форма входа
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', login);
+    }
+    
+    // Форма восстановления
+    const forgotForm = document.getElementById('forgot-form');
+    if (forgotForm) {
+        forgotForm.addEventListener('submit', forgotPassword);
+    }
+    
+    // Форма сброса пароля
+    const resetForm = document.getElementById('reset-form');
+    if (resetForm) {
+        resetForm.addEventListener('submit', resetPassword);
+    }
+    
+    // Форма смены пароля
+    const changePasswordForm = document.getElementById('change-password-form');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', changePassword);
+    }
+    
+    // Кнопки OAuth
+    document.querySelectorAll('.oauth-google')?.forEach(btn => {
+        btn.addEventListener('click', () => oauthLogin('google'));
+    });
+    document.querySelectorAll('.oauth-yandex')?.forEach(btn => {
+        btn.addEventListener('click', () => oauthLogin('yandex'));
+    });
+    document.querySelectorAll('.oauth-vk')?.forEach(btn => {
+        btn.addEventListener('click', () => oauthLogin('vk'));
+    });
+    
+    // Проверка подтверждения email
+    const urlParams = new URLSearchParams(window.location.search);
+    const verifyCode = urlParams.get('code');
+    if (verifyCode && window.location.pathname === '/verify-email.html') {
+        verifyEmail(verifyCode);
+    }
+    
+    // Кнопка выхода
+    document.querySelectorAll('.logout-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    });
+}
+
+// Запускаем инициализацию после загрузки DOM
+document.addEventListener('DOMContentLoaded', initAuthPages);

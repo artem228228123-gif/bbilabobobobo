@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>AЙДA — Премиум доска объявлений</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg: #f5f5f7;
+            --white: #ffffff;
+            --accent: #007aff;
+            --accent-grad: linear-gradient(135deg, #007aff, #5856d6);
+            --text: #1d1d1f;
+            --text-sec: #6e6e73;
+            --border: #e5e5ea;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 20px 38px rgba(0, 0, 0, 0.1);
+            --radius-card: 20px;
+            --radius-square: 24px;
+        }
+
+        [data-theme="dark"] {
+            --bg: #000000;
+            --white: #1c1c1e;
+            --text: #ffffff;
+            --text-sec: #8e8e93;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding-bottom: 70px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ===== ХЕДЕР ===== */
+        .header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(24px);
+            background: rgba(255, 255, 255, 0.72);
+            border-bottom: 0.5px solid var(--border);
+            padding: 12px 20px;
+            z-index: 100;
+        }
+        .header-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-decoration: none;
+        }
+        .search-wrapper { flex: 1; max-width: 400px; }
+        .search-container {
+            background: var(--white);
+            border-radius: 30px;
+            border: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 4px 12px;
+        }
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 8px 0;
+            outline: none;
+            background: transparent;
+        }
+        .search-btn, .photo-search-btn {
+            background: none;
+            border: none;
+            padding: 6px;
+            cursor: pointer;
+            color: var(--text-sec);
+        }
+        .city-selector {
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-action {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sec);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ff3b30;
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 20px;
+        }
+        .add-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 8px 18px;
+            border-radius: 30px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .profile-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 0.5px solid var(--border);
+            cursor: pointer;
+        }
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .theme-toggle {
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            border-radius: 30px;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+
+        /* ===== КАТЕГОРИИ (КВАДРАТНЫЕ APPLE-СТИЛЬ) ===== */
+        .categories-section {
+            max-width: 1400px;
+            margin: 24px auto 0;
+            padding: 0 20px;
+            position: relative;
+        }
+        .all-categories-btn {
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            border-radius: 30px;
+            padding: 10px 20px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .main-categories {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+            justify-content: flex-start;
+        }
+        /* Квадратные плитки как в Apple */
+        .main-cat-item {
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-square);
+            width: 110px;
+            padding: 16px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        .main-cat-item i {
+            font-size: 36px;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .main-cat-item span {
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+            line-height: 1.3;
+            color: var(--text);
+        }
+        .main-cat-item.active {
+            background: var(--accent-grad);
+            border-color: transparent;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,122,255,0.25);
+        }
+        .main-cat-item.active i,
+        .main-cat-item.active span {
+            color: white;
+            background: none;
+            -webkit-background-clip: unset;
+        }
+
+        /* ===== МЕГА-МЕНЮ (без изменений) ===== */
+        .categories-megamenu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--white);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            border: 0.5px solid var(--border);
+            width: 900px;
+            z-index: 1000;
+            display: none;
+            padding: 20px;
+        }
+        .categories-megamenu.show { display: flex; }
+        .megamenu-left { width: 260px; border-right: 0.5px solid var(--border); padding-right: 16px; }
+        .megamenu-left-item { padding: 10px 12px; cursor: pointer; border-radius: 12px; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .megamenu-left-item:hover { background: rgba(0,122,255,0.1); color: var(--accent); }
+        .megamenu-left-item.active { background: var(--accent-grad); color: #fff; }
+        .megamenu-center { width: 280px; border-right: 0.5px solid var(--border); padding: 0 16px; }
+        .megamenu-center-item { padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 13px; }
+        .megamenu-center-item:hover { background: rgba(0,122,255,0.1); color: var(--accent); }
+        .megamenu-center-item.active { background: var(--accent-grad); color: #fff; }
+        .megamenu-right { flex: 1; padding-left: 16px; }
+        .megamenu-right-title { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 12px; }
+        .megamenu-subcats { display: flex; flex-wrap: wrap; gap: 8px; }
+        .megamenu-subcat { background: var(--bg); padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 0.5px solid var(--border); }
+        .megamenu-subcat:hover { background: var(--accent-grad); color: #fff; }
+
+        /* ===== ПАНЕЛЬ УПРАВЛЕНИЯ ===== */
+        .controls-panel {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .view-modes {
+            display: flex;
+            gap: 6px;
+            background: var(--white);
+            padding: 4px;
+            border-radius: 40px;
+            border: 0.5px solid var(--border);
+        }
+        .view-mode-btn {
+            background: none;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .view-mode-btn.active {
+            background: var(--accent-grad);
+            color: #fff;
+        }
+        .seller-filter {
+            display: flex;
+            gap: 8px;
+        }
+        .seller-filter-btn {
+            background: none;
+            border: 0.5px solid var(--border);
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+        }
+        .seller-filter-btn.active {
+            background: var(--accent-grad);
+            color: #fff;
+            border-color: transparent;
+        }
+        .filters-toggle {
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+        }
+
+        /* ===== СЕТКА ===== */
+        .grid-view { max-width: 1400px; margin: 0 auto; padding: 0 20px 60px; }
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        .listing-card {
+            background: var(--white);
+            border-radius: var(--radius-card);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.25s;
+            border: 0.5px solid var(--border);
+        }
+        .listing-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-md);
+        }
+        .card-image { aspect-ratio: 4/3; overflow: hidden; }
+        .card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .listing-card:hover .card-image img { transform: scale(1.03); }
+        .card-content { padding: 16px; }
+        .card-price { font-size: 1.3rem; font-weight: 700; color: var(--accent); margin: 4px 0; }
+        .card-title { font-size: 14px; font-weight: 500; margin: 4px 0; }
+        .card-city { font-size: 12px; color: var(--text-sec); display: flex; align-items: center; gap: 4px; }
+        .like-btn-grid { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s; }
+        .like-btn-grid:hover { color: #ff3b30; transform: scale(1.05); }
+
+        /* ===== TIKTOK ЛЕНТА ===== */
+        .tiktok-view { max-width: 500px; margin: 0 auto; padding: 0 16px 60px; }
+        .tiktok-container {
+            scroll-snap-type: y mandatory;
+            height: 85vh;
+            overflow-y: auto;
+            border-radius: 28px;
+        }
+        .tiktok-card {
+            scroll-snap-align: start;
+            height: 80vh;
+            background: var(--white);
+            border-radius: 28px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border: 0.5px solid var(--border);
+            position: relative;
+        }
+        .tiktok-media { width: 100%; height: 100%; }
+        .tiktok-media img { width: 100%; height: 100%; object-fit: cover; }
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.4);
+            z-index: 10;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--accent);
+            transition: width 5s linear;
+        }
+        .tiktok-info-left {
+            position: absolute;
+            bottom: 20px;
+            left: 16px;
+            right: 80px;
+            color: white;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        }
+        .seller-profile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .seller-avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
+        .seller-name { font-weight: 700; font-size: 0.9rem; }
+        .price-tiktok { font-size: 1.4rem; font-weight: 800; background: linear-gradient(135deg, #fff, var(--accent)); background-clip: text; -webkit-background-clip: text; color: transparent; margin-top: 8px; }
+        .tiktok-actions-right {
+            position: absolute;
+            bottom: 20px;
+            right: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .action-icon-btn {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #e5e5ea;
+            gap: 2px;
+        }
+        .action-icon-btn span { font-size: 10px; }
+        .action-icon-btn:hover { transform: scale(1.1); background: var(--accent-grad); color: white; }
+
+        /* ===== КАРТА ===== */
+        .map-view { max-width: 1400px; margin: 0 auto; padding: 0 20px 60px; }
+        .map-container { height: 65vh; border-radius: 28px; overflow: hidden; box-shadow: var(--shadow-md); border: 0.5px solid var(--border); }
+
+        /* ===== МОДАЛКА ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            max-width: 500px;
+            width: 100%;
+            background: var(--white);
+            border-radius: 32px;
+            overflow: hidden;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        .modal-image { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
+        .modal-body { padding: 24px; }
+        .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+        .modal-price { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin: 12px 0; }
+        .modal-desc { color: var(--text-sec); line-height: 1.4; margin-bottom: 20px; }
+        .share-buttons { display: flex; gap: 12px; margin-bottom: 16px; }
+        .share-btn {
+            flex: 1;
+            background: var(--bg);
+            border: 0.5px solid var(--border);
+            padding: 10px;
+            border-radius: 40px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .share-btn:hover { background: var(--accent-grad); color: white; border-color: transparent; }
+        .contact-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 14px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* ===== ОНБОРДИНГ ===== */
+        .onboarding {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: opacity 0.4s;
+        }
+        .onboarding.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+        .onboarding-step { max-width: 280px; }
+        .onboarding-icon { font-size: 4rem; background: var(--accent-grad); background-clip: text; -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+        .onboarding-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
+        .onboarding-desc { color: var(--text-sec); margin-bottom: 24px; }
+        .onboarding-btn { background: var(--accent-grad); border: none; padding: 12px 32px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; }
+
+        /* ===== BOTTOM NAV ===== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 16px 12px;
+            z-index: 99;
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            color: var(--text-sec);
+            font-size: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .bottom-nav-item i { font-size: 20px; }
+        .bottom-nav-item.active { color: var(--accent); }
+
+        .empty-state { text-align: center; padding: 60px; color: var(--text-sec); }
+        .scroll-top-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: var(--accent-grad);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.2s;
+            z-index: 98;
+        }
+        .scroll-top-btn.visible { opacity: 1; visibility: visible; }
+        .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 24px; }
+        .skeleton-card { background: var(--white); border-radius: 20px; height: 340px; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        @media (max-width: 768px) {
+            .main-cat-item { width: 90px; padding: 12px 4px; }
+            .main-cat-item i { font-size: 28px; }
+            .categories-megamenu { width: 95vw; left: 2.5%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ОНБОРДИНГ -->
+    <div id="onboarding" class="onboarding">
+        <div class="onboarding-step">
+            <div class="onboarding-icon"><i class="fas fa-store"></i></div>
+            <h2 class="onboarding-title">Добро пожаловать в AЙДA</h2>
+            <p class="onboarding-desc">Премиальная доска объявлений в стиле Apple. Покупайте и продавайте с удовольствием.</p>
+            <button class="onboarding-btn" id="startBtn">Начать</button>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="header-container">
+            <a href="/" class="logo">AЙДA</a>
+            <div class="search-wrapper"><div class="search-container"><input type="text" id="searchInput" class="search-input" placeholder="Поиск..."><button class="search-btn"><i class="fas fa-search"></i></button><button class="photo-search-btn"><i class="fas fa-camera"></i></button></div></div>
+            <button class="city-selector"><i class="fas fa-map-marker-alt"></i> Москва <i class="fas fa-chevron-down"></i></button>
+            <div class="header-actions">
+                <a href="/favorites.html" class="header-action"><i class="far fa-heart"></i><span class="badge">3</span></a>
+                <a href="/notifications.html" class="header-action"><i class="far fa-bell"></i><span class="badge">5</span></a>
+                <a href="/chats.html" class="header-action"><i class="far fa-comment"></i><span class="badge">2</span></a>
+                <a href="/add-listing.html" class="add-btn"><i class="fas fa-plus"></i> Разместить</a>
+                <a href="/profile.html" class="profile-btn"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="profile-avatar"></a>
+                <button id="themeToggle" class="theme-toggle"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <div class="categories-section">
+        <button class="all-categories-btn" id="allCategoriesBtn"><i class="fas fa-folder"></i> Все категории <i class="fas fa-chevron-down"></i></button>
+        <div class="main-categories" id="mainCategories">
+            <div class="main-cat-item" data-cat="auto"><i class="fas fa-car"></i><span>Авто</span></div>
+            <div class="main-cat-item" data-cat="realty"><i class="fas fa-home"></i><span>Недвижимость</span></div>
+            <div class="main-cat-item" data-cat="work"><i class="fas fa-briefcase"></i><span>Работа</span></div>
+            <div class="main-cat-item" data-cat="services"><i class="fas fa-wrench"></i><span>Услуги</span></div>
+            <div class="main-cat-item" data-cat="personal"><i class="fas fa-tshirt"></i><span>Личные вещи</span></div>
+            <div class="main-cat-item" data-cat="home"><i class="fas fa-couch"></i><span>Для дома</span></div>
+            <div class="main-cat-item" data-cat="electronics"><i class="fas fa-mobile-alt"></i><span>Электроника</span></div>
+            <div class="main-cat-item" data-cat="hobby"><i class="fas fa-gamepad"></i><span>Хобби</span></div>
+            <div class="main-cat-item" data-cat="animals"><i class="fas fa-dog"></i><span>Животные</span></div>
+            <div class="main-cat-item" data-cat="business"><i class="fas fa-building"></i><span>Бизнес</span></div>
+            <div class="main-cat-item" data-cat="kids"><i class="fas fa-child"></i><span>Детям</span></div>
+            <div class="main-cat-item" data-cat="beauty"><i class="fas fa-spa"></i><span>Красота</span></div>
+            <div class="main-cat-item" data-cat="travel"><i class="fas fa-plane"></i><span>Путешествия</span></div>
+            <div class="main-cat-item" data-cat="parts"><i class="fas fa-car"></i><span>Запчасти</span></div>
+        </div>
+
+        <div id="categoriesMegamenu" class="categories-megamenu">
+            <div class="megamenu-left" id="megaLeft"></div>
+            <div class="megamenu-center" id="megaCenter"></div>
+            <div class="megamenu-right" id="megaRight"></div>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <div class="view-modes">
+            <button class="view-mode-btn active" data-mode="grid"><i class="fas fa-th"></i> Сетка</button>
+            <button class="view-mode-btn" data-mode="tiktok"><i class="fas fa-play-circle"></i> Лента</button>
+            <button class="view-mode-btn" data-mode="map"><i class="fas fa-map"></i> Карта</button>
+        </div>
+        <div class="seller-filter">
+            <button class="seller-filter-btn active" data-seller="all">Все</button>
+            <button class="seller-filter-btn" data-seller="private">Частный</button>
+            <button class="seller-filter-btn" data-seller="company">Компании</button>
+        </div>
+        <button class="filters-toggle"><i class="fas fa-sliders-h"></i> Фильтры</button>
+    </div>
+
+    <div id="gridView" class="grid-view">
+        <div id="skeletonGrid" class="skeleton-grid"></div>
+        <div id="listingsGrid" class="listings-grid" style="display: none;"></div>
+        <div id="emptyState" class="empty-state" style="display: none;"><i class="fas fa-box-open"></i><h3>Объявлений не найдено</h3></div>
+        <div id="loadingTrigger" style="height: 20px;"></div>
+    </div>
+
+    <div id="tiktokView" class="tiktok-view" style="display: none;">
+        <div class="tiktok-container" id="tiktokContainer"></div>
+    </div>
+
+    <div id="mapView" class="map-view" style="display: none;">
+        <div id="map" class="map-container"></div>
+    </div>
+
+    <div class="bottom-nav">
+        <button class="bottom-nav-item active" data-nav="home"><i class="fas fa-home"></i><span>Главная</span></button>
+        <button class="bottom-nav-item" data-nav="favorites"><i class="far fa-heart"></i><span>Избранное</span></button>
+        <button class="bottom-nav-item" data-nav="chats"><i class="far fa-comment"></i><span>Чаты</span></button>
+        <button class="bottom-nav-item" data-nav="profile"><i class="far fa-user"></i><span>Профиль</span></button>
+    </div>
+
+    <button id="scrollTopBtn" class="scroll-top-btn"><i class="fas fa-arrow-up"></i></button>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close"><i class="fas fa-times"></i></button>
+            <img id="modalImg" class="modal-image" src="">
+            <div class="modal-body">
+                <h2 id="modalTitle" class="modal-title"></h2>
+                <div id="modalPrice" class="modal-price"></div>
+                <p id="modalDesc" class="modal-desc"></p>
+                <div class="share-buttons">
+                    <button class="share-btn" id="shareTelegram"><i class="fab fa-telegram"></i> Telegram</button>
+                    <button class="share-btn" id="shareWhatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                </div>
+                <button class="contact-btn"><i class="fab fa-telegram"></i> Написать продавцу</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== ОНБОРДИНГ ==========
+        if (!localStorage.getItem('onboardingShown')) {
+            localStorage.setItem('onboardingShown', 'true');
+        } else {
+            document.getElementById('onboarding').classList.add('hide');
+        }
+        document.getElementById('startBtn').onclick = () => {
+            document.getElementById('onboarding').classList.add('hide');
+        };
+
+        // ========== ТЁМНАЯ ТЕМА ==========
+        const themeToggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark') root.setAttribute('data-theme', 'dark');
+        themeToggle.onclick = () => {
+            if (root.getAttribute('data-theme') === 'dark') {
+                root.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                root.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        };
+
+        // ========== ДАННЫЕ ОБЪЯВЛЕНИЙ (расширенные) ==========
+        let allListings = [
+            { id: 1, title: "iPhone 15 Pro", price: 89990, city: "Москва", likes: 124, comments: 34, reposts: 12, image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&h=450&fit=crop", seller: "apple_shop", sellerAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop", desc: "Отличное состояние, полный комплект, гарантия 1 год.", category: "electronics", type: "private" },
+            { id: 2, title: "MacBook Pro M3", price: 189990, city: "СПб", likes: 89, comments: 23, reposts: 7, image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&h=450&fit=crop", seller: "tech_store", sellerAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop", desc: "Новый, чип M3, 16GB RAM, 512GB SSD", category: "electronics", type: "company" },
+            { id: 3, title: "Квартира-студия", price: 12500000, city: "Москва", likes: 56, comments: 12, reposts: 4, image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&h=450&fit=crop", seller: "realty_pro", sellerAvatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop", desc: "Рядом метро, евроремонт, вид на город", category: "realty", type: "private" },
+            { id: 4, title: "Sony PS5", price: 59990, city: "Казань", likes: 234, comments: 67, reposts: 23, image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&h=450&fit=crop", seller: "game_store", sellerAvatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=80&h=80&fit=crop", desc: "Новая, 2 контроллера", category: "hobby", type: "company" },
+            { id: 5, title: "Велосипед Author", price: 45990, city: "Новосибирск", likes: 45, comments: 8, reposts: 3, image: "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=600&h=450&fit=crop", seller: "velo_shop", sellerAvatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=80&h=80&fit=crop", desc: "Горный велосипед, отличное состояние", category: "hobby", type: "private" },
+            { id: 6, title: "Репетитор по математике", price: 1500, city: "Москва", likes: 23, comments: 5, reposts: 2, image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600&h=450&fit=crop", seller: "teacher_pro", sellerAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop", desc: "Опытный репетитор, подготовка к ЕГЭ", category: "services", type: "private" }
+        ];
+
+        const categoriesTree = {
+    transport: {
+        name: "🚗 Транспорт",
+        subs: {
+            "Автомобили": ["Легковые", "Внедорожники", "Электромобили", "Автодома", "Раритетные"],
+            "Мотоциклы и мототехника": ["Вездеходы", "Картинг", "Квадроциклы и багги", "Мопеды и скутеры", "Мотоциклы", "Снегоходы"],
+            "Грузовики и спецтехника": ["Грузовики", "Сельхозтехника", "Седельные тягачи", "Прицепы", "Экскаваторы", "Автобусы", "Автодома", "Автокраны", "Бульдозеры", "Коммунальная техника", "Лёгкий коммерческий транспорт", "Навесное оборудование", "Погрузчики", "Строительная техника", "Техника для лесозаготовки"],
+            "Аренда спецтехники": ["Подъёмная техника", "Землеройная техника", "Коммунальная техника", "Дорожно-строительная техника", "Грузовой транспорт", "Погрузочная техника", "Навесное оборудование", "Прицепы", "Сельхозтехника"],
+            "Водный транспорт": ["Вёсельные лодки", "Гидроциклы", "Катера и яхты", "Моторные лодки и моторы"],
+            "Запчасти и аксессуары": ["Запчасти", "Шины, диски и колёса", "Аудио- и видеотехника", "Аксессуары", "Багажники и фаркопы", "Инструменты", "Прицепы", "Экипировка", "Масла и автохимия", "Противоугонные устройства", "GPS-навигаторы"]
+        }
+    },
+    realty: {
+        name: "🏠 Недвижимость",
+        subs: {
+            "Купить жильё": ["Все квартиры", "Вторичка", "Новостройки", "Каталог новостроек", "Дома, дачи, коттеджи", "Комнаты"],
+            "Путешествия": ["Квартиры посуточно", "Дома, дачи и коттеджи", "Комнаты и койко-места", "Отели"],
+            "Снять долгосрочно": ["Квартиры", "Дома, дачи и коттеджи", "Комнаты и койко-места"],
+            "Коммерческая недвижимость": ["Офисы", "Свободного назначения", "Торговые площади", "Склады", "Каталог бизнес-центров"],
+            "Земельные участки": ["Участки", "Сельхозназначения", "Промышленные земли"],
+            "Гаражи и машиноместа": ["Гаражи", "Машиноместа", "Парковки"],
+            "Зарубежная недвижимость": ["Европа", "Азия", "СНГ", "Другое"]
+        }
+    },
+    work: {
+        name: "💼 Работа",
+        subs: {
+            "Ищу работу": ["IT", "Маркетинг", "Продажи", "Строительство", "Транспорт", "Медицина", "Образование", "Юриспруденция", "Бухгалтерия", "Административная работа", "Банки", "Без опыта", "Высший менеджмент", "Госслужба", "Домашний персонал", "ЖКХ", "Искусство", "Консалтинг", "Курьерская доставка", "Охрана", "Производство", "Страхование", "Такси", "Туризм", "Управление персоналом", "Фитнес", "Химическая промышленность", "Энергетика"],
+            "Ищу сотрудника": ["IT, интернет, телеком", "Автомобильный бизнес", "Административная работа", "Банки, инвестиции", "Без опыта, студенты", "Бухгалтерия, финансы", "Высший менеджмент", "Госслужба, НКО", "Домашний персонал", "ЖКХ, эксплуатация", "Искусство, развлечения", "Консультирование", "Курьерская доставка", "Маркетинг, реклама, PR", "Медицина, фармацевтика", "Образование, наука", "Охрана, безопасность", "Продажи", "Производство, сырьё, с/х", "Страхование", "Строительство", "Такси", "Транспорт, логистика", "Туризм, рестораны", "Управление персоналом", "Фитнес, салоны красоты", "Юриспруденция"]
+        }
+    },
+    services: {
+        name: "🔧 Услуги",
+        subs: {
+            "Автосервис, аренда": ["Автосервисы для автомобилей", "Автосервисы для грузовиков", "Аренда авто", "Аренда спецтехники"],
+            "Перевозки и доставка": ["По городу", "Между городами", "Международные", "Пассажирские перевозки", "Трансфер", "Грузчики", "Эвакуатор"],
+            "Ремонт и отделка": ["Ремонт квартир под ключ", "Дизайн интерьеров", "Сантехника", "Электрика", "Сборка мебели", "Окна и балконы", "Мастер на час", "Вскрытие замков", "Поклейка обоев", "Потолки", "Полы", "Штукатурка", "Двери", "Плитка", "Столярные работы", "Гипсокартон", "Высотные работы", "Изоляция", "Вентиляция"],
+            "Строительство": ["Строительство домов под ключ", "Строительство гаражей, бань", "Отделка деревянных домов", "Кладочные работы", "Кровельные работы", "Сварка, ковка", "Фундаментные работы", "Алмазное сверление", "Снос и демонтаж", "Фасадные работы", "Проектирование", "Разнорабочие", "Лестницы", "Газификация"],
+            "Сад, благоустройство": ["Бурение скважин", "Водоёмы, бассейны", "Дорожное строительство", "Ограждения", "Земляные работы", "Озеленение"],
+            "Красота": ["Маникюр, педикюр", "Парикмахер", "Ресницы, брови", "Перманентный макияж", "Косметология", "Эпиляция", "Макияж", "СПА-услуги, массаж", "Тату, пирсинг"],
+            "Здоровье": ["Психология", "Диетология", "Фитнес, йога", "Стоматология", "Подология"],
+            "Ремонт техники": ["Телевизоры", "Мобильные устройства", "Фото-, аудио-, видеотехника", "Кондиционеры", "Стиральные машины", "Посудомоечные машины", "Холодильники", "Варочные панели", "Газовые котлы", "Кофемашины", "Швейные машины"],
+            "Компьютерная помощь": ["Компьютеры", "Принтеры", "Оборудование для майнинга", "Игровые приставки", "ОС и программы", "Интернет и сети"],
+            "Обучение, курсы": ["Предметы школы и вуза", "Иностранные языки", "Детское развитие", "Профессии и бизнес", "Творчество, хобби", "Вождение"],
+            "Деловые услуги": ["Бухгалтерия, финансы", "Консультирование", "IT, дизайн, тексты", "Юридические услуги", "Маркетинг и продвижение"],
+            "Уборка": ["Генеральная уборка", "Мойка окон", "Чистка ковров", "Чистка мягкой мебели", "Дезинфекция"],
+            "Бытовые услуги": ["Изготовление ключей", "Пошив и ремонт одежды", "Ремонт часов", "Химчистка", "Ювелирные услуги"],
+            "Праздники, мероприятия": ["Организация мероприятий", "Оформление и декор", "Прокат для мероприятий", "Организация досуга"],
+            "Доставка продуктов, кейтеринг": ["Доставка готовой еды", "Торты и десерты на заказ", "Кейтеринг, официанты"],
+            "Фото- и видеосъёмка": ["Фотосъёмка", "Видеосъёмка", "Аренда фотостудии"],
+            "Няни, сиделки": ["Няни", "Сиделки", "Уход за животными"]
+        }
+    },
+    personal: {
+        name: "👕 Личные вещи",
+        subs: {
+            "Одежда, обувь, аксессуары": ["Женская одежда", "Женская обувь", "Мужская одежда", "Мужская обувь", "Сумки, рюкзаки", "Аксессуары", "Детская одежда и обувь"],
+            "Товары для детей и игрушки": ["Автокресла", "Самокаты", "Детская мебель", "Коляски", "Игрушки", "Постельные принадлежности", "Товары для кормления", "Товары для купания", "Товары для школы", "Детская гигиена"],
+            "Красота и здоровье": ["Макияж и маникюр", "Парфюмерия", "Приборы и аксессуары", "Уход и гигиена", "Средства для волос", "Медицинские изделия", "БАДы"],
+            "Часы и украшения": ["Ювелирные изделия", "Часы", "Бижутерия"]
+        }
+    },
+    home: {
+        name: "🛋️ Для дома",
+        subs: {
+            "Ремонт и строительство": ["Двери", "Инструменты", "Камины", "Окна и балконы", "Потолки", "Для сада и дачи", "Сантехника", "Стройматериалы", "Готовые строения", "Ворота, заборы"],
+            "Мебель и интерьер": ["Компьютерные столы и кресла", "Кровати, диваны", "Кухонные гарнитуры", "Освещение", "Подставки и тумбы", "Предметы интерьера", "Столы и стулья", "Текстиль и ковры", "Шкафы, комоды", "Садовая мебель"],
+            "Бытовая техника": ["Для кухни", "Для дома", "Климатическое оборудование", "Для индивидуального ухода"],
+            "Продукты питания": ["Чай, кофе, какао", "Напитки", "Рыба, морепродукты", "Мясо, птица", "Кондитерские изделия", "Мёд", "Бакалея", "Овощи и зелень", "Молочные продукты", "Фрукты и ягоды", "Хлеб"],
+            "Растения": ["Комнатные растения", "Букеты", "Садовые растения", "Семена", "Товары для ухода", "Панно"],
+            "Посуда и товары для кухни": ["Посуда", "Товары для кухни"]
+        }
+    },
+    electronics: {
+        name: "📱 Электроника",
+        subs: {
+            "Телефоны": ["Мобильные телефоны", "Аксессуары", "Сим-карты", "Рации"],
+            "Аудио и видео": ["Телевизоры", "Наушники", "Акустика, колонки", "Музыкальные центры", "Усилители", "Видеокамеры", "Кабели"],
+            "Товары для компьютера": ["Комплектующие", "Мониторы", "Сетевое оборудование", "Клавиатуры и мыши", "Аксессуары", "Флэшки", "Веб-камеры"],
+            "Игры, приставки": ["Игровые приставки", "Игры", "Программы", "Компьютерные игры"],
+            "Ноутбуки": ["Ноутбуки"],
+            "Настольные компьютеры": ["Системные блоки", "Моноблоки"],
+            "Фототехника": ["Фотоаппараты", "Объективы", "Бинокли"],
+            "Планшеты и электронные книги": ["Планшеты", "Электронные книги"],
+            "Оргтехника": ["Принтеры", "Сканеры", "Расходные материалы"]
+        }
+    },
+    hobby: {
+        name: "🎮 Хобби",
+        subs: {
+            "Билеты и путешествия": ["Концерты", "Спорт", "Театр", "Кино"],
+            "Велосипеды": ["Городские", "Горные", "Детские", "Электровелосипеды"],
+            "Книги и журналы": ["Книги", "Журналы"],
+            "Коллекционирование": ["Монеты", "Марки", "Модели", "Открытки"],
+            "Музыкальные инструменты": ["Гитары", "Клавишные", "Ударные"],
+            "Охота и рыбалка": ["Охота", "Рыбалка", "Ножи"],
+            "Спорт и отдых": ["Фитнес", "Зимний спорт", "Туризм", "Ролики"]
+        }
+    },
+    animals: {
+        name: "🐕 Животные",
+        subs: {
+            "Собаки": ["Щенки", "Взрослые собаки", "Породистые"],
+            "Кошки": ["Котята", "Взрослые кошки"],
+            "Птицы": ["Попугаи", "Канарейки", "Другие птицы"],
+            "Аквариум": ["Рыбки", "Аквариумы", "Оборудование"],
+            "Другие животные": ["Грызуны", "Кролики", "Рептилии"],
+            "Товары для животных": ["Корм", "Клетки", "Аксессуары"]
+        }
+    },
+    business: {
+        name: "🏭 Бизнес",
+        subs: {
+            "Оборудование для бизнеса": ["Промышленное", "Логистика и склад", "Торговое", "Пищевое", "Для салона красоты", "Для автобизнеса", "Майнинг", "Лабораторное", "Медицинское"],
+            "Франшизы": ["Автобизнес", "Арендный бизнес", "Красота и здоровье", "Общественное питание", "Производство", "Сельское хозяйство", "Строительство", "Сфера услуг", "Торговля", "IT бизнес"],
+            "Готовый бизнес": ["Автобизнес", "Арендный бизнес", "Красота и здоровье", "Общественное питание", "Производство", "Торговля"],
+            "ПО для бизнеса": ["Аналитика", "Безопасность", "Склад и логистика", "Отраслевое ПО", "Офисное ПО", "Продажи и маркетинг", "Управление персоналом"]
+        }
+    }
+};
+        // Рендер мега-меню (как в исходном рабочем коде)
+        const leftContainer = document.getElementById('megaLeft');
+        const centerContainer = document.getElementById('megaCenter');
+        const rightContainer = document.getElementById('megaRight');
+
+        for (const [key, value] of Object.entries(categoriesTree)) {
+            const div = document.createElement('div');
+            div.className = 'megamenu-left-item';
+            div.textContent = value.name;
+            div.dataset.catKey = key;
+            div.onmouseenter = () => {
+                document.querySelectorAll('.megamenu-left-item').forEach(i => i.classList.remove('active'));
+                div.classList.add('active');
+                renderCenter(key);
+            };
+            leftContainer.appendChild(div);
+        }
+
+        function renderCenter(catKey) {
+            const category = categoriesTree[catKey];
+            if (!category) return;
+            centerContainer.innerHTML = '';
+            for (const [subName, subSubs] of Object.entries(category.subs)) {
+                const div = document.createElement('div');
+                div.className = 'megamenu-center-item';
+                div.textContent = subName;
+                div.onmouseenter = () => {
+                    document.querySelectorAll('.megamenu-center-item').forEach(i => i.classList.remove('active'));
+                    div.classList.add('active');
+                    renderRight(subSubs);
+                };
+                centerContainer.appendChild(div);
+            }
+            const firstSub = Object.keys(category.subs)[0];
+            if (firstSub) renderRight(category.subs[firstSub]);
+        }
+
+        function renderRight(subSubs) {
+            rightContainer.innerHTML = `<div class="megamenu-right-title">Выберите подкатегорию</div><div class="megamenu-subcats">${subSubs.map(s => `<span class="megamenu-subcat">${s}</span>`).join('')}</div>`;
+            document.querySelectorAll('.megamenu-subcat').forEach(el => {
+                el.onclick = () => {
+                    alert(`Вы выбрали: ${el.textContent}`);
+                    megamenu.classList.remove('show');
+                };
+            });
+        }
+
+        const firstCat = leftContainer.querySelector('.megamenu-left-item');
+        if (firstCat) { firstCat.classList.add('active'); renderCenter(firstCat.dataset.catKey); }
+
+        const allCategoriesBtn = document.getElementById('allCategoriesBtn');
+        const megamenu = document.getElementById('categoriesMegamenu');
+        allCategoriesBtn.onclick = (e) => { e.stopPropagation(); megamenu.classList.toggle('show'); };
+        document.addEventListener('click', (e) => { if (!allCategoriesBtn.contains(e.target) && !megamenu.contains(e.target)) megamenu.classList.remove('show'); });
+
+        // ========== ФИЛЬТРАЦИЯ ==========
+        let currentCategory = null;
+        let currentSellerType = "all";
+        const catMap = { auto:"transport", realty:"realty", work:"work", services:"services", personal:"personal", home:"home", electronics:"electronics", hobby:"hobby", animals:"animals", business:"business", kids:"kids", beauty:"beauty", travel:"travel", parts:"parts" };
+
+        function filterListings() {
+            let filtered = [...allListings];
+            if (currentCategory) filtered = filtered.filter(item => item.category === (catMap[currentCategory] || currentCategory));
+            if (currentSellerType !== "all") filtered = filtered.filter(item => item.type === currentSellerType);
+            return filtered;
+        }
+
+        // ========== СЕТКА С БЕСКОНЕЧНОЙ ПОДГРУЗКОЙ ==========
+        let currentPage = 1, isLoading = false, hasMore = true;
+        const ITEMS_PER_PAGE = 6;
+        const gridContainer = document.getElementById('listingsGrid');
+        const skeletonGrid = document.getElementById('skeletonGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        function showSkeleton(show) {
+            if (show) {
+                skeletonGrid.style.display = 'grid';
+                gridContainer.style.display = 'none';
+                skeletonGrid.innerHTML = Array(6).fill('<div class="skeleton-card"></div>').join('');
+            } else {
+                skeletonGrid.style.display = 'none';
+                gridContainer.style.display = 'grid';
+            }
+        }
+
+        function loadMoreItems() {
+            if (isLoading || !hasMore) return;
+            isLoading = true;
+            const filtered = filterListings();
+            const start = (currentPage - 1) * ITEMS_PER_PAGE;
+            const newItems = filtered.slice(start, start + ITEMS_PER_PAGE);
+            if (newItems.length === 0) {
+                hasMore = false;
+                isLoading = false;
+                if (gridContainer.children.length === 0) emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+            setTimeout(() => {
+                newItems.forEach(item => {
+                    gridContainer.insertAdjacentHTML('beforeend', `
+                        <div class="listing-card" data-id="${item.id}">
+                            <div class="card-image"><img src="${item.image}" loading="lazy"></div>
+                            <div class="card-content">
+                                <div class="card-price">${item.price.toLocaleString()} ₽</div>
+                                <div class="card-title">${item.title}</div>
+                                <div class="card-city"><i class="fas fa-map-marker-alt"></i> ${item.city} <span class="like-btn-grid" data-id="${item.id}" style="margin-left:auto;"><i class="far fa-heart"></i> ${item.likes}</span></div>
+                            </div>
+                        </div>
+                    `);
+                });
+                attachCardListeners();
+                attachGridLikeListeners();
+                currentPage++;
+                isLoading = false;
+            }, 200);
+        }
+
+        function resetAndLoad() {
+            currentPage = 1;
+            hasMore = true;
+            gridContainer.innerHTML = '';
+            showSkeleton(true);
+            setTimeout(() => {
+                loadMoreItems();
+                showSkeleton(false);
+            }, 300);
+        }
+
+        function attachCardListeners() {
+            document.querySelectorAll('.listing-card').forEach(card => {
+                card.onclick = (e) => {
+                    if (e.target.closest('.like-btn-grid')) return;
+                    const id = parseInt(card.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) showModal(item);
+                };
+            });
+        }
+
+        function attachGridLikeListeners() {
+            document.querySelectorAll('.like-btn-grid').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) {
+                        item.likes++;
+                        btn.innerHTML = `<i class="fas fa-heart" style="color:#ff3b30;"></i> ${item.likes}`;
+                        animateLike(btn);
+                    }
+                };
+            });
+        }
+
+        function animateLike(el) { el.style.transform = 'scale(1.2)'; setTimeout(() => el.style.transform = '', 200); }
+
+        // ========== КАТЕГОРИИ И ФИЛЬТРЫ ==========
+        document.querySelectorAll('.main-cat-item').forEach(cat => {
+            cat.onclick = () => {
+                const category = cat.dataset.cat;
+                if (currentCategory === category) {
+                    currentCategory = null;
+                    cat.classList.remove('active');
+                } else {
+                    document.querySelectorAll('.main-cat-item').forEach(c => c.classList.remove('active'));
+                    cat.classList.add('active');
+                    currentCategory = category;
+                }
+                resetAndLoad();
+                if (currentMode === 'tiktok') renderTikTok();
+                if (currentMode === 'map') initMap();
+            };
+        });
+
+        document.querySelectorAll('.seller-filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.seller-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentSellerType = btn.dataset.seller;
+                resetAndLoad();
+                if (currentMode === 'tiktok') renderTikTok();
+                if (currentMode === 'map') initMap();
+            };
+        });
+
+        // ========== TIKTOK ЛЕНТА ==========
+        function renderTikTok() {
+            const container = document.getElementById('tiktokContainer');
+            const filtered = filterListings();
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><h3>Объявлений не найдено</h3></div>`;
+                return;
+            }
+            container.innerHTML = filtered.map((item, idx) => `
+                <div class="tiktok-card" data-id="${item.id}">
+                    <div class="progress-bar"><div class="progress-fill" id="progress-${idx}"></div></div>
+                    <div class="tiktok-media"><img src="${item.image}"></div>
+                    <div class="tiktok-info-left">
+                        <div class="seller-profile"><img src="${item.sellerAvatar}" class="seller-avatar"><div class="seller-name">${item.seller}</div></div>
+                        <div class="listing-title-tiktok">${item.title}</div>
+                        <div class="listing-desc">${item.desc.substring(0, 80)}...</div>
+                        <div class="price-tiktok">${item.price.toLocaleString()} ₽</div>
+                    </div>
+                    <div class="tiktok-actions-right">
+                        <div class="action-icon-btn like-tiktok" data-id="${item.id}"><i class="far fa-heart"></i><span>${item.likes}</span></div>
+                        <div class="action-icon-btn"><i class="far fa-comment"></i><span>${item.comments}</span></div>
+                        <div class="action-icon-btn"><i class="fas fa-retweet"></i><span>${item.reposts}</span></div>
+                        <div class="action-icon-btn share-tiktok" data-id="${item.id}"><i class="fas fa-share-alt"></i></div>
+                    </div>
+                </div>
+            `).join('');
+            setTimeout(() => document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '100%'), 100);
+            attachTikTokListeners();
+        }
+
+        function attachTikTokListeners() {
+            document.querySelectorAll('.like-tiktok').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) {
+                        item.likes++;
+                        btn.innerHTML = `<i class="fas fa-heart" style="color:#ff3b30;"></i><span>${item.likes}</span>`;
+                        animateLike(btn);
+                    }
+                };
+            });
+            document.querySelectorAll('.share-tiktok').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item && navigator.share) navigator.share({ title: item.title, text: `${item.price.toLocaleString()} ₽` });
+                    else if (item) alert(`Поделиться: ${item.title}`);
+                };
+            });
+            document.querySelectorAll('.tiktok-card').forEach(card => {
+                card.onclick = () => {
+                    const id = parseInt(card.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) showModal(item);
+                };
+            });
+        }
+
+        // ========== КАРТА ==========
+        let map = null;
+        function initMap() {
+            if (map) return;
+            setTimeout(() => {
+                const container = document.getElementById('map');
+                if (!container || container.innerHTML) return;
+                map = L.map('map').setView([55.751244, 37.618423], 12);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM' }).addTo(map);
+                const filtered = filterListings();
+                filtered.forEach(item => {
+                    const lat = 55.751244 + (Math.random() - 0.5) * 0.15;
+                    const lng = 37.618423 + (Math.random() - 0.5) * 0.15;
+                    L.marker([lat, lng]).addTo(map).bindPopup(`${item.title}<br>${item.price.toLocaleString()} ₽`);
+                });
+            }, 100);
+        }
+
+        // ========== МОДАЛКА ==========
+        let currentShareItem = null;
+        function showModal(item) {
+            currentShareItem = item;
+            document.getElementById('modalImg').src = item.image;
+            document.getElementById('modalTitle').innerText = item.title;
+            document.getElementById('modalPrice').innerText = `${item.price.toLocaleString()} ₽`;
+            document.getElementById('modalDesc').innerText = item.desc;
+            document.getElementById('detailModal').classList.add('active');
+        }
+        document.getElementById('shareTelegram').onclick = () => {
+            if (currentShareItem) {
+                const text = `${currentShareItem.title} - ${currentShareItem.price.toLocaleString()} ₽`;
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(`https://aida.ru/listing/${currentShareItem.id}`)}&text=${encodeURIComponent(text)}`, '_blank');
+            }
+        };
+        document.getElementById('shareWhatsapp').onclick = () => {
+            if (currentShareItem) {
+                const text = `${currentShareItem.title} - ${currentShareItem.price.toLocaleString()} ₽`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            }
+        };
+        document.querySelectorAll('.modal-close, .contact-btn').forEach(btn => {
+            btn.onclick = () => document.getElementById('detailModal').classList.remove('active');
+        });
+        document.getElementById('detailModal').onclick = (e) => { if (e.target === document.getElementById('detailModal')) document.getElementById('detailModal').classList.remove('active'); };
+
+        // ========== ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ ==========
+        let currentMode = 'grid';
+        const gridView = document.getElementById('gridView');
+        const tiktokView = document.getElementById('tiktokView');
+        const mapView = document.getElementById('mapView');
+        const modeBtns = document.querySelectorAll('.view-mode-btn');
+
+        function switchMode(mode) {
+            currentMode = mode;
+            gridView.style.display = 'none';
+            tiktokView.style.display = 'none';
+            mapView.style.display = 'none';
+            if (mode === 'grid') { gridView.style.display = 'block'; if (!gridContainer.children.length) resetAndLoad(); }
+            else if (mode === 'tiktok') { tiktokView.style.display = 'block'; renderTikTok(); }
+            else if (mode === 'map') { mapView.style.display = 'block'; initMap(); }
+        }
+        modeBtns.forEach(btn => {
+            btn.onclick = () => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                switchMode(btn.dataset.mode);
+            };
+        });
+
+        // ========== КНОПКА НАВЕРХ ==========
+        const scrollBtn = document.getElementById('scrollTopBtn');
+        window.onscroll = () => { if (window.scrollY > 300) scrollBtn.classList.add('visible'); else scrollBtn.classList.remove('visible'); };
+        scrollBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // ========== БЕСКОНЕЧНАЯ ПОДГРУЗКА ==========
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !isLoading && hasMore && currentMode === 'grid') loadMoreItems();
+        }, { threshold: 0.1 });
+        observer.observe(document.getElementById('loadingTrigger'));
+
+        // ========== ЗАПУСК ==========
+        resetAndLoad();
+    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>

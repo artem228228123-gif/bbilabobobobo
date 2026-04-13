@@ -1,0 +1,748 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/css/mobile.css
+ * Описание: Мобильная адаптация (телефоны и планшеты)
+ */
+
+/* ============================================
+   ПЕРЕМЕННЫЕ ДЛЯ МОБИЛЬНЫХ
+   ============================================ */
+
+@media (max-width: 768px) {
+    :root {
+        --radius-card: 16px;
+        --radius-button: 40px;
+        --radius-input: 25px;
+        --font-4xl: 24px;
+        --font-3xl: 20px;
+        --font-2xl: 18px;
+        --font-xl: 16px;
+    }
+}
+
+/* ============================================
+   БАЗОВЫЕ СТИЛИ
+   ============================================ */
+
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+    
+    .container {
+        padding: 0 12px;
+    }
+    
+    /* Хедер */
+    .header-container {
+        flex-direction: column;
+        padding: 10px 12px;
+        gap: 10px;
+    }
+    
+    .logo {
+        font-size: 20px;
+    }
+    
+    .search-wrapper {
+        width: 100%;
+    }
+    
+    .search-container {
+        width: 100%;
+    }
+    
+    .search-input {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .city-selector {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    
+    .add-listing-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    
+    .add-listing-btn .add-text {
+        display: inline;
+    }
+    
+    .profile-avatar {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* ============================================
+   ГЛАВНАЯ СТРАНИЦА
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Категории */
+    .categories-icons {
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding: 8px 12px;
+        gap: 16px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .category-icon {
+        flex-shrink: 0;
+        text-align: center;
+    }
+    
+    .icon-circle {
+        width: 56px;
+        height: 56px;
+        font-size: 28px;
+    }
+    
+    .category-icon span {
+        font-size: 11px;
+    }
+    
+    /* Панель управления */
+    .controls-panel {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .view-modes {
+        order: 1;
+    }
+    
+    .seller-filter {
+        order: 2;
+    }
+    
+    .filters-toggle {
+        order: 3;
+        width: 100%;
+    }
+    
+    /* Фильтры */
+    .filters-panel {
+        padding: 16px;
+    }
+    
+    .filters-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .filter-group-full {
+        width: 100%;
+    }
+    
+    /* Сетка объявлений */
+    .listings-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .listing-card {
+        border-radius: var(--radius-card);
+    }
+    
+    .card-price {
+        font-size: 16px;
+    }
+    
+    .card-title {
+        font-size: 13px;
+    }
+    
+    .card-meta {
+        font-size: 11px;
+    }
+    
+    .like-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+}
+
+/* ============================================
+   СТРАНИЦА ОБЪЯВЛЕНИЯ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .listing-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .listing-gallery {
+        order: 1;
+    }
+    
+    .listing-info {
+        order: 2;
+        padding: 0 16px;
+    }
+    
+    .listing-seller {
+        order: 3;
+        padding: 0 16px;
+    }
+    
+    .listing-price {
+        font-size: 28px;
+    }
+    
+    .listing-title {
+        font-size: 18px;
+    }
+    
+    .gallery-main {
+        height: 400px;
+    }
+    
+    .gallery-thumbnails {
+        display: none;
+    }
+    
+    .similar-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 16px;
+    }
+    
+    .seller-card {
+        padding: 16px;
+    }
+    
+    .listing-actions {
+        flex-direction: column;
+    }
+    
+    .listing-actions button {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   ПРОФИЛЬ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .profile-info {
+        text-align: center;
+    }
+    
+    .profile-meta {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .profile-tabs {
+        overflow-x: auto;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 12px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-btn {
+        flex-shrink: 0;
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .user-listing-card {
+        flex-direction: column;
+    }
+    
+    .listing-card-image {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .listing-card-actions {
+        flex-wrap: wrap;
+    }
+    
+    .listing-card-actions .btn-sm {
+        flex: 1;
+        text-align: center;
+    }
+}
+
+/* ============================================
+   ЧАТЫ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .chats-container {
+        flex-direction: column;
+        height: calc(100vh - 120px);
+    }
+    
+    .chats-sidebar {
+        width: 100%;
+        height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .chat-messages-panel {
+        flex: 1;
+    }
+    
+    .chat-header {
+        padding: 12px;
+    }
+    
+    .messages-container {
+        height: calc(100vh - 280px);
+    }
+    
+    .message-input-container {
+        padding: 12px;
+    }
+    
+    .message-input-wrapper {
+        flex-wrap: wrap;
+    }
+    
+    .message-input {
+        flex: 1;
+        min-width: 150px;
+    }
+}
+
+/* ============================================
+   АУТЕНТИФИКАЦИЯ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 20px 16px;
+        margin: 20px 16px;
+    }
+    
+    .auth-tabs {
+        gap: 8px;
+    }
+    
+    .auth-tab {
+        padding: 12px 24px;
+        font-size: 16px;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .social-auth {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .social-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .register-container {
+        padding: 20px 16px;
+    }
+}
+
+/* ============================================
+   ИЗБРАННОЕ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .favorites-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .favorites-actions {
+        width: 100%;
+    }
+    
+    .favorites-actions button {
+        flex: 1;
+    }
+    
+    .favorites-filters {
+        flex-wrap: wrap;
+    }
+    
+    .favorites-filters .filter-group {
+        flex: 1;
+        min-width: calc(50% - 8px);
+    }
+    
+    .favorites-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .favorite-card {
+        flex-direction: column;
+    }
+    
+    .favorite-card-image {
+        width: 100%;
+        height: 180px;
+    }
+}
+
+/* ============================================
+   УВЕДОМЛЕНИЯ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .notifications-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .notifications-actions {
+        width: 100%;
+    }
+    
+    .notifications-actions button {
+        flex: 1;
+    }
+    
+    .notifications-filters {
+        overflow-x: auto;
+        justify-content: flex-start;
+        gap: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .filter-btn {
+        flex-shrink: 0;
+        padding: 6px 16px;
+        font-size: 13px;
+    }
+    
+    .notification-item {
+        flex-wrap: wrap;
+    }
+    
+    .notification-content {
+        flex: 1;
+        min-width: 200px;
+    }
+}
+
+/* ============================================
+   АДМИНКА
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .admin-sidebar {
+        width: 70px;
+    }
+    
+    .admin-nav-item span:not(.nav-icon) {
+        display: none;
+    }
+    
+    .admin-nav-item .nav-badge {
+        position: absolute;
+        top: 4px;
+        right: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-layout {
+        flex-direction: column;
+    }
+    
+    .admin-sidebar {
+        width: 100%;
+        height: auto;
+        min-height: auto;
+        position: static;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .admin-nav {
+        display: flex;
+        padding: 8px 12px;
+        overflow-x: auto;
+        gap: 8px;
+    }
+    
+    .admin-nav-item {
+        width: auto;
+        padding: 8px 16px;
+        border-radius: var(--radius-button);
+    }
+    
+    .admin-nav-item.active {
+        border-right: none;
+        background: var(--accent-primary);
+        color: white;
+    }
+    
+    .admin-nav-item .nav-icon {
+        font-size: 18px;
+    }
+    
+    .admin-content {
+        padding: 16px;
+    }
+    
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-charts {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-table {
+        font-size: 12px;
+    }
+    
+    .admin-table th,
+    .admin-table td {
+        padding: 8px 12px;
+    }
+    
+    .actions-cell {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+/* ============================================
+   ПОИСК
+   ============================================ */
+
+@media (max-width: 768px) {
+    .search-controls {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .sort-control {
+        flex: 1;
+    }
+    
+    .sort-select {
+        width: 100%;
+    }
+    
+    .filters-toggle-btn {
+        width: 100%;
+    }
+    
+    .search-results-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .search-results-list .result-card {
+        flex-direction: column;
+    }
+    
+    .result-image {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .search-map {
+        height: 400px;
+    }
+}
+
+/* ============================================
+   КАРТА
+   ============================================ */
+
+@media (max-width: 768px) {
+    .map-controls {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .map-search {
+        width: 100%;
+    }
+    
+    .map-radius-control {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .map-container {
+        height: 400px;
+    }
+}
+
+/* ============================================
+   ФУТЕР
+   ============================================ */
+
+@media (max-width: 768px) {
+    .footer-container {
+        flex-direction: column;
+        text-align: center;
+        gap: 24px;
+    }
+    
+    .footer-column {
+        text-align: center;
+    }
+    
+    .social-links {
+        justify-content: center;
+    }
+}
+
+/* ============================================
+   МОДАЛЬНЫЕ ОКНА
+   ============================================ */
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: calc(100% - 32px);
+        margin: 16px;
+        max-height: calc(100vh - 32px);
+    }
+    
+    .modal-sm {
+        width: calc(100% - 32px);
+    }
+    
+    .modal-header {
+        padding: 16px;
+    }
+    
+    .modal-body {
+        padding: 16px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .modal-actions button {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   TOAST УВЕДОМЛЕНИЯ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .toast-container {
+        bottom: 16px;
+        left: 16px;
+        right: 16px;
+    }
+    
+    .toast {
+        width: calc(100% - 32px);
+        margin: 0 auto;
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+}
+
+/* ============================================
+   УТИЛИТЫ ДЛЯ МОБИЛЬНЫХ
+   ============================================ */
+
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none !important;
+    }
+    
+    .show-mobile {
+        display: block !important;
+    }
+    
+    .text-center-mobile {
+        text-align: center;
+    }
+    
+    .full-width-mobile {
+        width: 100%;
+    }
+    
+    .flex-column-mobile {
+        flex-direction: column;
+    }
+    
+    .gap-mobile {
+        gap: 8px;
+    }
+}
+
+/* ============================================
+   АЛЬБОМНАЯ ОРИЕНТАЦИЯ
+   ============================================ */
+
+@media (max-width: 896px) and (orientation: landscape) {
+    .listing-gallery {
+        height: 300px;
+    }
+    
+    .gallery-main {
+        height: 280px;
+    }
+    
+    .chats-sidebar {
+        height: 150px;
+    }
+    
+    .messages-container {
+        height: calc(100vh - 250px);
+    }
+}

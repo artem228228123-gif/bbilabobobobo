@@ -1,0 +1,518 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/upload.js
+ * Описание: Загрузка файлов (фото, видео, документы), предпросмотр, сжатие, drag & drop
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let uploadQueue = [];
+let isUploading = false;
+let currentUploadId = null;
+let uploadProgress = {};
+
+// Конфигурация загрузки
+const UPLOAD_CONFIG = {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 10,
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
+    imageQuality: 0.8,
+    maxWidth: 1920,
+    maxHeight: 1920
+};
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+function initFileUpload(options = {}) {
+    const {
+        dropzoneId = 'dropzone',
+        inputId = 'file-input',
+        previewContainerId = 'file-preview',
+        maxFiles = UPLOAD_CONFIG.maxFiles,
+        maxSize = UPLOAD_CONFIG.maxFileSize,
+        onFileAdded = null,
+        onFileRemoved = null,
+        onUploadComplete = null
+    } = options;
+    
+    const dropzone = document.getElementById(dropzoneId);
+    const fileInput = document.getElementById(inputId);
+    const previewContainer = document.getElementById(previewContainerId);
+    
+    if (!dropzone || !fileInput) return;
+    
+    // Клик по dropzone для выбора файлов
+    dropzone.addEventListener('click', () => fileInput.click());
+    
+    // Выбор файлов
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        handleFiles(files, { maxFiles, maxSize, onFileAdded, previewContainer });
+        fileInput.value = '';
+    });
+    
+    // Drag & Drop
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+    
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+    
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files);
+        handleFiles(files, { maxFiles, maxSize, onFileAdded, previewContainer });
+    });
+    
+    return { dropzone, fileInput, previewContainer };
+}
+
+async function handleFiles(files, options) {
+    const { maxFiles, maxSize, onFileAdded, previewContainer } = options;
+    
+    const currentCount = document.querySelectorAll('.file-preview-item').length;
+    const availableSlots = maxFiles - currentCount;
+    
+    if (files.length > availableSlots) {
+        showToast(`Можно загрузить максимум ${maxFiles} файлов`, 'error');
+        return;
+    }
+    
+    for (const file of files) {
+        if (!UPLOAD_CONFIG.allowedTypes.includes(file.type)) {
+            showToast(`Формат ${file.type.split('/')[1]} не поддерживается`, 'error');
+            continue;
+        }
+        
+        if (file.size > maxSize) {
+            showToast(`Файл ${file.name} превышает ${maxSize / 1024 / 1024}MB`, 'error');
+            continue;
+        }
+        
+        // Создаём предпросмотр
+        const preview = await createFilePreview(file, previewContainer);
+        
+        if (onFileAdded) {
+            onFileAdded(file, preview);
+        }
+    }
+}
+
+async function createFilePreview(file, container) {
+    const previewId = `preview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const previewEl = document.createElement('div');
+    previewEl.className = 'file-preview-item';
+    previewEl.id = previewId;
+    previewEl.dataset.fileName = file.name;
+    previewEl.dataset.fileSize = file.size;
+    previewEl.dataset.fileType = file.type;
+    
+    // Содержимое превью
+    let content = '';
+    
+    if (file.type.startsWith('image/')) {
+        // Для изображений
+        const compressed = await compressImage(file);
+        const previewUrl = URL.createObjectURL(compressed);
+        content = `
+            <div class="preview-image">
+                <img src="${previewUrl}" alt="${escapeHtml(file.name)}">
+                <div class="preview-overlay">
+                    <div class="preview-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="preview-info">
+                <span class="preview-name">${escapeHtml(file.name)}</span>
+                <span class="preview-size">${formatFileSize(file.size)}</span>
+            </div>
+            <button type="button" class="preview-remove" data-id="${previewId}">✕</button>
+            <div class="preview-status pending">⏳ Ожидает</div>
+        `;
+        previewEl.dataset.previewUrl = previewUrl;
+    } else if (file.type.startsWith('video/')) {
+        // Для видео
+        const videoUrl = URL.createObjectURL(file);
+        content = `
+            <div class="preview-video">
+                <video src="${videoUrl}" preload="metadata"></video>
+                <div class="preview-overlay">
+                    <div class="preview-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="preview-info">
+                <span class="preview-name">${escapeHtml(file.name)}</span>
+                <span class="preview-size">${formatFileSize(file.size)}</span>
+            </div>
+            <button type="button" class="preview-remove" data-id="${previewId}">✕</button>
+            <div class="preview-status pending">⏳ Ожидает</div>
+        `;
+        previewEl.dataset.previewUrl = videoUrl;
+    } else {
+        // Для других файлов
+        content = `
+            <div class="preview-file">
+                <div class="file-icon">📄</div>
+                <div class="preview-overlay">
+                    <div class="preview-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="preview-info">
+                <span class="preview-name">${escapeHtml(file.name)}</span>
+                <span class="preview-size">${formatFileSize(file.size)}</span>
+            </div>
+            <button type="button" class="preview-remove" data-id="${previewId}">✕</button>
+            <div class="preview-status pending">⏳ Ожидает</div>
+        `;
+    }
+    
+    previewEl.innerHTML = content;
+    container.appendChild(previewEl);
+    
+    // Обработчик удаления
+    const removeBtn = previewEl.querySelector('.preview-remove');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            removeFilePreview(previewId);
+            if (previewEl.dataset.previewUrl) {
+                URL.revokeObjectURL(previewEl.dataset.previewUrl);
+            }
+        });
+    }
+    
+    return previewEl;
+}
+
+function removeFilePreview(previewId) {
+    const preview = document.getElementById(previewId);
+    if (preview) {
+        if (preview.dataset.previewUrl) {
+            URL.revokeObjectURL(preview.dataset.previewUrl);
+        }
+        preview.remove();
+    }
+}
+
+// ============================================
+// СЖАТИЕ ИЗОБРАЖЕНИЙ
+// ============================================
+
+async function compressImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target.result;
+            
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                
+                // Масштабируем если нужно
+                if (width > UPLOAD_CONFIG.maxWidth) {
+                    height = (height * UPLOAD_CONFIG.maxWidth) / width;
+                    width = UPLOAD_CONFIG.maxWidth;
+                }
+                
+                if (height > UPLOAD_CONFIG.maxHeight) {
+                    width = (width * UPLOAD_CONFIG.maxHeight) / height;
+                    height = UPLOAD_CONFIG.maxHeight;
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/webp', UPLOAD_CONFIG.imageQuality);
+            };
+            
+            img.onerror = reject;
+        };
+        
+        reader.onerror = reject;
+    });
+}
+
+// ============================================
+// ЗАГРУЗКА НА СЕРВЕР
+// ============================================
+
+async function uploadFiles(files, url, onProgress = null) {
+    const formData = new FormData();
+    
+    files.forEach((file, index) => {
+        formData.append(`files[${index}]`, file);
+    });
+    
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token')}`);
+        
+        if (onProgress) {
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    onProgress(percent);
+                }
+            });
+        }
+        
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                resolve(JSON.parse(xhr.response));
+            } else {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+            }
+        };
+        
+        xhr.onerror = () => reject(new Error('Network error'));
+        
+        xhr.send(formData);
+    });
+}
+
+async function uploadWithQueue(files, url, options = {}) {
+    const {
+        onProgress = null,
+        onFileComplete = null,
+        onAllComplete = null,
+        concurrency = 3
+    } = options;
+    
+    const queue = [...files];
+    let activeUploads = 0;
+    let completed = 0;
+    let results = [];
+    
+    return new Promise((resolve) => {
+        function startNext() {
+            if (queue.length === 0 || activeUploads >= concurrency) return;
+            
+            const file = queue.shift();
+            activeUploads++;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token')}`);
+            
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable && onProgress) {
+                    const percent = (e.loaded / e.total) * 100;
+                    onProgress(file.name, percent, completed, files.length);
+                }
+            });
+            
+            xhr.onload = () => {
+                activeUploads--;
+                completed++;
+                
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.response);
+                    results.push(result);
+                    if (onFileComplete) onFileComplete(file, result);
+                } else {
+                    results.push({ error: true, file: file.name, status: xhr.status });
+                }
+                
+                if (completed === files.length) {
+                    if (onAllComplete) onAllComplete(results);
+                    resolve(results);
+                } else {
+                    startNext();
+                }
+            };
+            
+            xhr.onerror = () => {
+                activeUploads--;
+                completed++;
+                results.push({ error: true, file: file.name, message: 'Network error' });
+                
+                if (completed === files.length) {
+                    if (onAllComplete) onAllComplete(results);
+                    resolve(results);
+                } else {
+                    startNext();
+                }
+            };
+            
+            xhr.send(formData);
+        }
+        
+        // Запускаем начальные загрузки
+        for (let i = 0; i < Math.min(concurrency, files.length); i++) {
+            startNext();
+        }
+    });
+}
+
+// ============================================
+// ЗАГРУЗКА ФОТО ДЛЯ ОБЪЯВЛЕНИЯ
+// ============================================
+
+async function uploadListingPhotos(files, listingId, onProgress) {
+    const formData = new FormData();
+    
+    for (const file of files) {
+        const compressed = await compressImage(file);
+        formData.append('photos', compressed);
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/listings/${listingId}/photos`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.photos;
+        } else {
+            throw new Error('Upload failed');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки фото:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// ЗАГРУЗКА АВАТАРА
+// ============================================
+
+async function uploadAvatar(file, onProgress) {
+    const compressed = await compressImage(file);
+    const formData = new FormData();
+    formData.append('avatar', compressed);
+    
+    try {
+        const response = await fetch('/api/v1/users/avatar', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.avatar_url;
+        } else {
+            throw new Error('Upload failed');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки аватара:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// ЗАГРУЗКА ФОТО В ЧАТ
+// ============================================
+
+async function uploadChatPhoto(chatId, file, onProgress) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.open('POST', `/api/v1/chats/${chatId}/messages`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token')}`);
+        
+        if (onProgress) {
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    onProgress(percent);
+                }
+            });
+        }
+        
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                resolve(JSON.parse(xhr.response));
+            } else {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+            }
+        };
+        
+        xhr.onerror = () => reject(new Error('Network error'));
+        
+        xhr.send(formData);
+    });
+}
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function updateUploadProgress(previewId, percent, status = 'uploading') {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+    
+    const progressBar = preview.querySelector('.preview-progress');
+    const statusEl = preview.querySelector('.preview-status');
+    
+    if (progressBar) {
+        progressBar.style.width = `${percent}%`;
+    }
+    
+    if (statusEl) {
+        if (status === 'uploading') {
+            statusEl.innerHTML = `📤 Загрузка ${Math.round(percent)}%`;
+            statusEl.className = 'preview-status uploading';
+        } else if (status === 'success') {
+            statusEl.innerHTML = '✅ Готово';
+            statusEl.className = 'preview-status success';
+        } else if (status === 'error') {
+            statusEl.innerHTML = '❌ Ошибка';
+            statusEl.className = 'preview-status error';
+        }
+    }
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initFileUpload = initFileUpload;
+window.compressImage = compressImage;
+window.uploadFiles = uploadFiles;
+window.uploadWithQueue = uploadWithQueue;
+window.uploadListingPhotos = uploadListingPhotos;
+window.uploadAvatar = uploadAvatar;
+window.uploadChatPhoto = uploadChatPhoto;
+window.formatFileSize = formatFileSize;
+window.updateUploadProgress = updateUploadProgress;

@@ -1,0 +1,323 @@
+# ============================================
+# AIDA — Премиальная доска объявлений
+# Версия: 3.0 ULTRA
+# Файл: .gitignore
+# Описание: Файлы и папки, исключаемые из Git
+# ============================================
+
+# ============================================
+# ЗАВИСИМОСТИ
+# ============================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================
+# ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ
+# ============================================
+
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env.staging
+
+# ============================================
+# ЛОГИ
+# ============================================
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pm2-*.log
+pm2.log
+pm2.pid
+
+# ============================================
+# ВРЕМЕННЫЕ ФАЙЛЫ
+# ============================================
+
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.cache-loader/
+
+# ============================================
+# ЗАГРУЖЕННЫЕ ФАЙЛЫ
+# ============================================
+
+uploads/
+uploads/*
+!uploads/.gitkeep
+
+# ============================================
+# БЭКАПЫ
+# ============================================
+
+backups/
+*.backup
+*.bak
+*.old
+*.orig
+*.sql
+*.dump
+*.sql.gz
+*.tar.gz
+*.zip
+
+# ============================================
+# IDE И РЕДАКТОРЫ
+# ============================================
+
+# VS Code
+.vscode/
+.history/
+*.code-workspace
+
+# WebStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Atom
+.atom/
+*.atom
+
+# Vim
+*.swp
+*.swo
+*~
+*.un~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================
+# ОС
+# ============================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.DS_Store
+AppleDouble
+.LSOverride
+Icon
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.exe
+*.dll
+*.com
+*.scr
+*.bat
+*.cmd
+*.ps1
+*.psm1
+*.psd1
+
+# Linux
+.directory
+*.pid
+*.seed
+*.pid.lock
+*.socket
+
+# ============================================
+# БИЛДЫ И КОМПИЛЯЦИЯ
+# ============================================
+
+dist/
+build/
+out/
+*.log
+*.map
+*.tsbuildinfo
+
+# ============================================
+# ТЕСТЫ И ПОКРЫТИЕ
+# ============================================
+
+coverage/
+.nyc_output/
+.pytest_cache/
+.vitest/
+__tests__/
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+
+# ============================================
+# ДОКУМЕНТАЦИЯ
+# ============================================
+
+docs/_build/
+docs/api/_build/
+site/
+*.pdf
+*.docx
+
+# ============================================
+# SSL СЕРТИФИКАТЫ
+# ============================================
+
+*.pem
+*.crt
+*.key
+*.csr
+*.p12
+*.pfx
+
+# ============================================
+# DOCKER
+# ============================================
+
+docker-compose.override.yml
+docker-compose.*.yml
+!.dockerignore
+.dockerignore
+
+# ============================================
+# ДАННЫЕ БАЗЫ ДАННЫХ
+# ============================================
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.pgsql
+
+# ============================================
+# ПРОЧЕЕ
+# ============================================
+
+# PM2
+.pm2/
+pm2.json
+ecosystem.config.js
+
+# Redis
+dump.rdb
+redis.conf
+
+# Nginx
+nginx.conf
+sites-enabled/*
+sites-available/*
+
+# Sentry
+.sentryclirc
+
+# ESLint
+.eslintcache
+
+# Prettier
+.prettiercache
+
+# Stylelint
+.stylelintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# Next.js
+.next/
+
+# Nuxt
+.nuxt/
+
+# Gatsby
+.cache/
+public/
+
+# Storybook
+storybook-static
+
+# Remix
+build/
+
+# SvelteKit
+.svelte-kit/
+
+# Expo
+.expo/
+
+# ============================================
+# СЕКРЕТЫ И КЛЮЧИ
+# ============================================
+
+*.key
+*.pem
+*.crt
+*.secret
+secrets/
+keys/
+.ssh/
+.gpg/
+.aws/
+
+# ============================================
+# АРХИВЫ
+# ============================================
+
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.tgz
+
+# ============================================
+# ПАПКИ ДЛЯ ЗАГРУЗКИ
+# ============================================
+
+uploads/
+temp/
+tmp/
+downloads/
+exports/
+
+# ============================================
+# ФАЙЛЫ С ЛИЧНЫМИ ДАННЫМИ
+# ============================================
+
+*.p12
+*.pfx
+*.jks
+*.keystore

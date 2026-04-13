@@ -1,0 +1,555 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/helpers.js
+ * Описание: Вспомогательные функции (форматирование, debounce, throttle, работа с DOM, cookie)
+ */
+
+// ============================================
+// ФОРМАТИРОВАНИЕ
+// ============================================
+
+// Форматирование цены
+function formatPrice(price) {
+    if (price === undefined || price === null) return '0 ₽';
+    return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+}
+
+// Форматирование числа с сокращением (K, M)
+function formatNumber(num) {
+    if (num === undefined || num === null) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+// Форматирование даты
+function formatDate(date, format = 'DD.MM.YYYY') {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    
+    return format
+        .replace('DD', day)
+        .replace('MM', month)
+        .replace('YYYY', year)
+        .replace('HH', hours)
+        .replace('mm', minutes)
+        .replace('ss', seconds);
+}
+
+// Относительное время (только что, 5 мин назад, вчера)
+function formatTimeAgo(date) {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now - d;
+    
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+    
+    if (seconds < 60) return 'только что';
+    if (minutes < 60) return `${minutes} мин назад`;
+    if (hours < 24) return `${hours} ч назад`;
+    if (days === 1) return 'вчера';
+    if (days < 7) return `${days} д назад`;
+    if (weeks < 4) return `${weeks} нед назад`;
+    if (months < 12) return `${months} мес назад`;
+    return `${years} г назад`;
+}
+
+// Форматирование телефона
+function formatPhone(phone) {
+    if (!phone) return '';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+        return cleaned.replace(/(\d{1})(\d{3})(\d{3})(\d{2})(\d{2})/, '+$1 ($2) $3-$4-$5');
+    }
+    if (cleaned.length === 10) {
+        return cleaned.replace(/(\d{3})(\d{3})(\d{2})(\d{2})/, '+7 ($1) $2-$3-$4');
+    }
+    return phone;
+}
+
+// Форматирование размера файла
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Форматирование длительности (секунды -> MM:SS)
+function formatDuration(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ============================================
+// ESCAPE HTML
+// ============================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function unescapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+}
+
+// ============================================
+// РАБОТА С DOM
+// ============================================
+
+// Получить значение элемента
+function getValue(selector) {
+    const el = document.querySelector(selector);
+    if (!el) return null;
+    if (el.type === 'checkbox') return el.checked;
+    return el.value;
+}
+
+// Установить значение элемента
+function setValue(selector, value) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = value;
+    else el.value = value;
+}
+
+// Показать элемент
+function showElement(selector) {
+    const el = document.querySelector(selector);
+    if (el) el.style.display = 'block';
+}
+
+// Скрыть элемент
+function hideElement(selector) {
+    const el = document.querySelector(selector);
+    if (el) el.style.display = 'none';
+}
+
+// Переключить элемент
+function toggleElement(selector) {
+    const el = document.querySelector(selector);
+    if (el) {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Добавить класс
+function addClass(selector, className) {
+    const el = document.querySelector(selector);
+    if (el) el.classList.add(className);
+}
+
+// Удалить класс
+function removeClass(selector, className) {
+    const el = document.querySelector(selector);
+    if (el) el.classList.remove(className);
+}
+
+// Переключить класс
+function toggleClass(selector, className) {
+    const el = document.querySelector(selector);
+    if (el) el.classList.toggle(className);
+}
+
+// ============================================
+// COOKIE
+// ============================================
+
+function setCookie(name, value, days = 365) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+}
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+function deleteCookie(name) {
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
+// ============================================
+// LOCALSTORAGE
+// ============================================
+
+function setStorage(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (e) {
+        console.error('Storage error:', e);
+        return false;
+    }
+}
+
+function getStorage(key, defaultValue = null) {
+    try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : defaultValue;
+    } catch (e) {
+        console.error('Storage error:', e);
+        return defaultValue;
+    }
+}
+
+function removeStorage(key) {
+    localStorage.removeItem(key);
+}
+
+function clearStorage() {
+    localStorage.clear();
+}
+
+// ============================================
+// URL ПАРАМЕТРЫ
+// ============================================
+
+function getUrlParams() {
+    const params = {};
+    const search = window.location.search.substring(1);
+    if (!search) return params;
+    
+    search.split('&').forEach(pair => {
+        const [key, value] = pair.split('=');
+        params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+    });
+    return params;
+}
+
+function getUrlParam(name) {
+    const params = getUrlParams();
+    return params[name] || null;
+}
+
+function setUrlParams(params, replace = false) {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(params)) {
+        if (value !== null && value !== undefined && value !== '') {
+            url.searchParams.set(key, value);
+        } else {
+            url.searchParams.delete(key);
+        }
+    }
+    
+    if (replace) {
+        window.history.replaceState({}, '', url);
+    } else {
+        window.history.pushState({}, '', url);
+    }
+}
+
+// ============================================
+// DEBOUNCE & THROTTLE
+// ============================================
+
+function debounce(func, wait = 300, immediate = false) {
+    let timeout;
+    return function executedFunction(...args) {
+        const context = this;
+        const later = () => {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+        };
+        const callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+    };
+}
+
+function throttle(func, limit = 300) {
+    let inThrottle;
+    return function(...args) {
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// ============================================
+// КЛОНИРОВАНИЕ
+// ============================================
+
+function deepClone(obj) {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj instanceof Date) return new Date(obj);
+    if (obj instanceof Array) return obj.map(item => deepClone(item));
+    if (obj instanceof Object) {
+        const cloned = {};
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                cloned[key] = deepClone(obj[key]);
+            }
+        }
+        return cloned;
+    }
+    return obj;
+}
+
+// ============================================
+// ПРОВЕРКИ ТИПОВ
+// ============================================
+
+function isString(value) {
+    return typeof value === 'string';
+}
+
+function isNumber(value) {
+    return typeof value === 'number' && !isNaN(value);
+}
+
+function isBoolean(value) {
+    return typeof value === 'boolean';
+}
+
+function isArray(value) {
+    return Array.isArray(value);
+}
+
+function isObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isFunction(value) {
+    return typeof value === 'function';
+}
+
+function isEmpty(value) {
+    if (value === null || value === undefined) return true;
+    if (isString(value)) return value.trim() === '';
+    if (isArray(value)) return value.length === 0;
+    if (isObject(value)) return Object.keys(value).length === 0;
+    return false;
+}
+
+// ============================================
+// ГЕНЕРАТОРЫ
+// ============================================
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function generateSlug(str) {
+    return str
+        .toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 100);
+}
+
+function generateRandomString(length = 8) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+// ============================================
+// СКРОЛЛ
+// ============================================
+
+function scrollToTop(smooth = true) {
+    window.scrollTo({
+        top: 0,
+        behavior: smooth ? 'smooth' : 'auto'
+    });
+}
+
+function scrollToElement(selector, offset = 0) {
+    const element = document.querySelector(selector);
+    if (!element) return;
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - offset;
+    window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+    });
+}
+
+function isElementInViewport(selector) {
+    const element = document.querySelector(selector);
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+}
+
+// ============================================
+= АНИМАЦИИ
+// ============================================
+
+function fadeIn(element, duration = 300) {
+    if (!element) return;
+    element.style.opacity = '0';
+    element.style.display = 'block';
+    
+    let start = null;
+    function animate(timestamp) {
+        if (!start) start = timestamp;
+        const progress = timestamp - start;
+        const opacity = Math.min(progress / duration, 1);
+        element.style.opacity = opacity;
+        if (progress < duration) {
+            requestAnimationFrame(animate);
+        } else {
+            element.style.opacity = '1';
+        }
+    }
+    requestAnimationFrame(animate);
+}
+
+function fadeOut(element, duration = 300) {
+    if (!element) return;
+    element.style.opacity = '1';
+    
+    let start = null;
+    function animate(timestamp) {
+        if (!start) start = timestamp;
+        const progress = timestamp - start;
+        const opacity = Math.max(1 - progress / duration, 0);
+        element.style.opacity = opacity;
+        if (progress < duration) {
+            requestAnimationFrame(animate);
+        } else {
+            element.style.display = 'none';
+            element.style.opacity = '';
+        }
+    }
+    requestAnimationFrame(animate);
+}
+
+// ============================================
+// КЛИПБОРД
+// ============================================
+
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch (err) {
+        console.error('Ошибка копирования:', err);
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return true;
+    }
+}
+
+// ============================================
+// ДЕТЕКЦИЯ УСТРОЙСТВА
+// ============================================
+
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function isTouchDevice() {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
+function getDeviceType() {
+    if (isMobile()) return 'mobile';
+    return 'desktop';
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.helpers = {
+    formatPrice,
+    formatNumber,
+    formatDate,
+    formatTimeAgo,
+    formatPhone,
+    formatFileSize,
+    formatDuration,
+    escapeHtml,
+    unescapeHtml,
+    getValue,
+    setValue,
+    showElement,
+    hideElement,
+    toggleElement,
+    addClass,
+    removeClass,
+    toggleClass,
+    setCookie,
+    getCookie,
+    deleteCookie,
+    setStorage,
+    getStorage,
+    removeStorage,
+    clearStorage,
+    getUrlParams,
+    getUrlParam,
+    setUrlParams,
+    debounce,
+    throttle,
+    deepClone,
+    isString,
+    isNumber,
+    isBoolean,
+    isArray,
+    isObject,
+    isFunction,
+    isEmpty,
+    generateId,
+    generateSlug,
+    generateRandomString,
+    scrollToTop,
+    scrollToElement,
+    isElementInViewport,
+    fadeIn,
+    fadeOut,
+    copyToClipboard,
+    isMobile,
+    isTouchDevice,
+    getDeviceType
+};

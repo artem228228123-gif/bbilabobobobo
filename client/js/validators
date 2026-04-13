@@ -1,0 +1,500 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/validators.js
+ * Описание: Валидация форм (email, телефон, пароль, цена, файлы, адреса)
+ */
+
+// ============================================
+// ОСНОВНЫЕ ВАЛИДАТОРЫ
+// ============================================
+
+const Validators = {
+    // Проверка email
+    email: (value) => {
+        if (!value) return { valid: false, message: 'Email обязателен' };
+        const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
+        if (!emailRegex.test(value)) {
+            return { valid: false, message: 'Введите корректный email' };
+        }
+        if (value.length > 255) {
+            return { valid: false, message: 'Email не должен превышать 255 символов' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка пароля
+    password: (value, options = {}) => {
+        const { minLength = 6, maxLength = 100, requireNumbers = true, requireLetters = true } = options;
+        
+        if (!value) return { valid: false, message: 'Пароль обязателен' };
+        if (value.length < minLength) {
+            return { valid: false, message: `Пароль должен содержать минимум ${minLength} символов` };
+        }
+        if (value.length > maxLength) {
+            return { valid: false, message: `Пароль не должен превышать ${maxLength} символов` };
+        }
+        if (requireNumbers && !/\d/.test(value)) {
+            return { valid: false, message: 'Пароль должен содержать хотя бы одну цифру' };
+        }
+        if (requireLetters && !/[a-zA-Zа-яА-Я]/.test(value)) {
+            return { valid: false, message: 'Пароль должен содержать хотя бы одну букву' };
+        }
+        return { valid: true };
+    },
+    
+    // Подтверждение пароля
+    passwordConfirm: (password, confirmPassword) => {
+        if (password !== confirmPassword) {
+            return { valid: false, message: 'Пароли не совпадают' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка имени
+    name: (value) => {
+        if (!value) return { valid: false, message: 'Имя обязательно' };
+        if (value.length < 2) {
+            return { valid: false, message: 'Имя должно содержать минимум 2 символа' };
+        }
+        if (value.length > 100) {
+            return { valid: false, message: 'Имя не должно превышать 100 символов' };
+        }
+        if (/[<>{}[\]\\]/.test(value)) {
+            return { valid: false, message: 'Имя содержит недопустимые символы' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка телефона
+    phone: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'Телефон обязателен' };
+        
+        // Очищаем от лишних символов
+        const cleaned = value.replace(/[^\d+]/g, '');
+        const phoneRegex = /^(\+7|8)?[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/;
+        const isValid = phoneRegex.test(cleaned) || /^\+?[0-9]{10,15}$/.test(cleaned);
+        
+        if (!isValid) {
+            return { valid: false, message: 'Введите корректный номер телефона' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка цены
+    price: (value, options = {}) => {
+        const { min = 0, max = 1000000000, required = true } = options;
+        
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'Цена обязательна' };
+        
+        const num = Number(value);
+        if (isNaN(num)) {
+            return { valid: false, message: 'Цена должна быть числом' };
+        }
+        if (num < min) {
+            return { valid: false, message: `Цена не может быть меньше ${min} ₽` };
+        }
+        if (num > max) {
+            return { valid: false, message: `Цена не может быть больше ${max.toLocaleString()} ₽` };
+        }
+        if (!Number.isInteger(num)) {
+            return { valid: false, message: 'Цена должна быть целым числом' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка названия объявления
+    title: (value) => {
+        if (!value) return { valid: false, message: 'Название обязательно' };
+        if (value.length < 5) {
+            return { valid: false, message: 'Название должно содержать минимум 5 символов' };
+        }
+        if (value.length > 200) {
+            return { valid: false, message: 'Название не должно превышать 200 символов' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка описания
+    description: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (value && value.length > 5000) {
+            return { valid: false, message: 'Описание не должно превышать 5000 символов' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка города
+    city: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'Город обязателен' };
+        if (value.length < 2) {
+            return { valid: false, message: 'Название города должно содержать минимум 2 символа' };
+        }
+        if (value.length > 100) {
+            return { valid: false, message: 'Название города не должно превышать 100 символов' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка URL
+    url: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'URL обязателен' };
+        
+        const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+        if (!urlRegex.test(value)) {
+            return { valid: false, message: 'Введите корректный URL' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка числа
+    number: (value, options = {}) => {
+        const { min = null, max = null, integer = true, required = true } = options;
+        
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'Поле обязательно' };
+        
+        const num = Number(value);
+        if (isNaN(num)) {
+            return { valid: false, message: 'Введите число' };
+        }
+        if (integer && !Number.isInteger(num)) {
+            return { valid: false, message: 'Введите целое число' };
+        }
+        if (min !== null && num < min) {
+            return { valid: false, message: `Значение должно быть не меньше ${min}` };
+        }
+        if (max !== null && num > max) {
+            return { valid: false, message: `Значение должно быть не больше ${max}` };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка даты
+    date: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'Дата обязательна' };
+        
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            return { valid: false, message: 'Введите корректную дату' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка возраста (18+)
+    age: (birthDate) => {
+        if (!birthDate) return { valid: false, message: 'Дата рождения обязательна' };
+        
+        const date = new Date(birthDate);
+        if (isNaN(date.getTime())) {
+            return { valid: false, message: 'Введите корректную дату рождения' };
+        }
+        
+        const today = new Date();
+        let age = today.getFullYear() - date.getFullYear();
+        const monthDiff = today.getMonth() - date.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+            age--;
+        }
+        
+        if (age < 18) {
+            return { valid: false, message: 'Вам должно быть 18 лет или больше' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка файла
+    file: (file, options = {}) => {
+        const { maxSize = 10 * 1024 * 1024, allowedTypes = null, required = false } = options;
+        
+        if (!file && !required) return { valid: true };
+        if (!file && required) return { valid: false, message: 'Файл обязателен' };
+        
+        if (file.size > maxSize) {
+            return { valid: false, message: `Файл не должен превышать ${maxSize / 1024 / 1024}MB` };
+        }
+        
+        if (allowedTypes && !allowedTypes.includes(file.type)) {
+            return { valid: false, message: `Поддерживаемые форматы: ${allowedTypes.join(', ')}` };
+        }
+        
+        return { valid: true };
+    },
+    
+    // Проверка нескольких файлов
+    files: (files, options = {}) => {
+        const { maxFiles = 10, maxSize = 10 * 1024 * 1024, allowedTypes = null, required = false } = options;
+        
+        if ((!files || files.length === 0) && !required) return { valid: true };
+        if ((!files || files.length === 0) && required) return { valid: false, message: 'Загрузите хотя бы один файл' };
+        
+        if (files.length > maxFiles) {
+            return { valid: false, message: `Можно загрузить не более ${maxFiles} файлов` };
+        }
+        
+        for (const file of files) {
+            if (file.size > maxSize) {
+                return { valid: false, message: `Файл ${file.name} превышает ${maxSize / 1024 / 1024}MB` };
+            }
+            if (allowedTypes && !allowedTypes.includes(file.type)) {
+                return { valid: false, message: `Файл ${file.name} имеет неподдерживаемый формат` };
+            }
+        }
+        
+        return { valid: true };
+    },
+    
+    // Проверка координат
+    coordinates: (lat, lng) => {
+        if (!lat && !lng) return { valid: true };
+        
+        const latNum = parseFloat(lat);
+        const lngNum = parseFloat(lng);
+        
+        if (isNaN(latNum) || isNaN(lngNum)) {
+            return { valid: false, message: 'Неверные координаты' };
+        }
+        
+        if (latNum < -90 || latNum > 90) {
+            return { valid: false, message: 'Широта должна быть от -90 до 90' };
+        }
+        
+        if (lngNum < -180 || lngNum > 180) {
+            return { valid: false, message: 'Долгота должна быть от -180 до 180' };
+        }
+        
+        return { valid: true };
+    },
+    
+    // Проверка VIN номера
+    vin: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'VIN номер обязателен' };
+        
+        const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/i;
+        if (!vinRegex.test(value)) {
+            return { valid: false, message: 'VIN должен содержать 17 символов (цифры и латинские буквы, кроме I, O, Q)' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка индекса
+    postalCode: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'Почтовый индекс обязателен' };
+        
+        const postalRegex = /^\d{6}$/;
+        if (!postalRegex.test(value)) {
+            return { valid: false, message: 'Введите корректный почтовый индекс (6 цифр)' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка ИНН
+    inn: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'ИНН обязателен' };
+        
+        const innRegex = /^\d{10}$|^\d{12}$/;
+        if (!innRegex.test(value)) {
+            return { valid: false, message: 'ИНН должен содержать 10 или 12 цифр' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка ОГРН
+    ogrn: (value, required = false) => {
+        if (!value && !required) return { valid: true };
+        if (!value && required) return { valid: false, message: 'ОГРН обязателен' };
+        
+        const ogrnRegex = /^\d{13}$|^\d{15}$/;
+        if (!ogrnRegex.test(value)) {
+            return { valid: false, message: 'ОГРН должен содержать 13 или 15 цифр' };
+        }
+        return { valid: true };
+    },
+    
+    // Проверка ссылки на соцсеть
+    socialLink: (value, platform) => {
+        if (!value) return { valid: true };
+        
+        const patterns = {
+            telegram: /^(https?:\/\/)?(t\.me|telegram\.me)\/[a-zA-Z0-9_]+$/,
+            vk: /^(https?:\/\/)?(vk\.com|vkontakte\.ru)\/([a-zA-Z0-9_]+|id\d+)$/,
+            instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/[a-zA-Z0-9_.]+$/,
+            youtube: /^(https?:\/\/)?(www\.)?(youtube\.com\/@|youtu\.be\/)[a-zA-Z0-9_-]+$/,
+            whatsapp: /^(https?:\/\/)?(wa\.me|api\.whatsapp\.com)\/.+$/
+        };
+        
+        const pattern = patterns[platform];
+        if (pattern && !pattern.test(value)) {
+            return { valid: false, message: `Введите корректную ссылку на ${platform}` };
+        }
+        
+        return { valid: true };
+    }
+};
+
+// ============================================
+// ВАЛИДАЦИЯ ФОРМЫ
+// ============================================
+
+class FormValidator {
+    constructor(formElement, rules) {
+        this.form = formElement;
+        this.rules = rules;
+        this.errors = {};
+        this.isValid = true;
+    }
+    
+    validate() {
+        this.errors = {};
+        this.isValid = true;
+        
+        for (const [fieldName, fieldRules] of Object.entries(this.rules)) {
+            const input = this.form.querySelector(`[name="${fieldName}"]`);
+            if (!input) continue;
+            
+            const value = input.type === 'checkbox' ? input.checked : input.value;
+            
+            for (const rule of fieldRules) {
+                const [ruleName, options] = Array.isArray(rule) ? rule : [rule];
+                const validator = Validators[ruleName];
+                
+                if (validator) {
+                    const result = validator(value, options);
+                    if (!result.valid) {
+                        this.errors[fieldName] = result.message;
+                        this.isValid = false;
+                        this.showError(input, result.message);
+                        break;
+                    } else {
+                        this.clearError(input);
+                    }
+                }
+            }
+        }
+        
+        return this.isValid;
+    }
+    
+    showError(input, message) {
+        const formGroup = input.closest('.form-group');
+        if (!formGroup) return;
+        
+        // Удаляем старую ошибку
+        const oldError = formGroup.querySelector('.form-error');
+        if (oldError) oldError.remove();
+        
+        // Добавляем новую
+        input.classList.add('error');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'form-error';
+        errorDiv.textContent = message;
+        formGroup.appendChild(errorDiv);
+    }
+    
+    clearError(input) {
+        const formGroup = input.closest('.form-group');
+        if (!formGroup) return;
+        
+        input.classList.remove('error');
+        const errorDiv = formGroup.querySelector('.form-error');
+        if (errorDiv) errorDiv.remove();
+    }
+    
+    getErrors() {
+        return this.errors;
+    }
+}
+
+// ============================================
+// БЫСТРЫЕ ВАЛИДАЦИИ
+// ============================================
+
+function validateForm(formId, rules) {
+    const form = document.getElementById(formId);
+    if (!form) return false;
+    
+    const validator = new FormValidator(form, rules);
+    return validator.validate();
+}
+
+function validateField(value, ruleName, options = {}) {
+    const validator = Validators[ruleName];
+    if (!validator) return { valid: false, message: `Валидатор ${ruleName} не найден` };
+    return validator(value, options);
+}
+
+// ============================================
+// ПРЕДУСТАНОВЛЕННЫЕ ПРАВИЛА ДЛЯ ФОРМ
+// ============================================
+
+const FormRules = {
+    // Регистрация
+    registration: {
+        name: [['name', { minLength: 2, maxLength: 50 }]],
+        email: [['email']],
+        phone: [['phone', { required: false }]],
+        password: [['password', { minLength: 6 }]],
+        password_confirm: [['passwordConfirm', { passwordField: 'password' }]],
+        agree: [['checkbox', { required: true, message: 'Необходимо согласие с условиями' }]]
+    },
+    
+    // Вход
+    login: {
+        email: [['email']],
+        password: [['password', { minLength: 1 }]]
+    },
+    
+    // Создание объявления
+    listing: {
+        title: [['title']],
+        description: [['description', { required: false }]],
+        price: [['price', { min: 0, max: 1000000000 }]],
+        category_id: [['required', { message: 'Выберите категорию' }]],
+        city: [['city', { required: true }]]
+    },
+    
+    // Профиль
+    profile: {
+        name: [['name']],
+        email: [['email']],
+        phone: [['phone', { required: false }]],
+        city: [['city', { required: false }]]
+    },
+    
+    // Резюме
+    resume: {
+        full_name: [['name']],
+        birth_date: [['age']],
+        education: [['required', { message: 'Образование обязательно' }]],
+        phone: [['phone']],
+        email: [['email']]
+    },
+    
+    // Гараж (автомобиль)
+    garage: {
+        brand: [['required', { message: 'Марка обязательна' }]],
+        model: [['required', { message: 'Модель обязательна' }]],
+        year: [['number', { min: 1900, max: new Date().getFullYear(), integer: true }]],
+        vin: [['vin', { required: false }]],
+        mileage: [['number', { min: 0, required: false }]]
+    }
+};
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.Validators = Validators;
+window.FormValidator = FormValidator;
+window.validateForm = validateForm;
+window.validateField = validateField;
+window.FormRules = FormRules;

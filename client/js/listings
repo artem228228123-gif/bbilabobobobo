@@ -1,0 +1,716 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/listings.js
+ * Описание: Работа с объявлениями (создание, редактирование, удаление, лайки, загрузка фото)
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let currentListingsPage = 1;
+let isLoadingListings = false;
+let hasMoreListings = true;
+let currentFilters = {};
+
+// ============================================
+// ЗАГРУЗКА ОБЪЯВЛЕНИЙ
+// ============================================
+
+async function loadListings(filters = {}, append = false) {
+    if (isLoadingListings) return;
+    
+    isLoadingListings = true;
+    
+    const container = document.getElementById('listings-container');
+    const skeleton = document.getElementById('listings-skeleton');
+    
+    if (!append && skeleton) skeleton.style.display = 'block';
+    
+    try {
+        const params = new URLSearchParams({
+            limit: 20,
+            page: append ? currentListingsPage : 1,
+            ...filters
+        });
+        
+        const response = await fetch(`/api/v1/listings?${params}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            if (append) {
+                renderListings(data.listings, true);
+                currentListingsPage++;
+                hasMoreListings = data.hasMore;
+            } else {
+                renderListings(data.listings, false);
+                currentListingsPage = 2;
+                hasMoreListings = data.hasMore;
+            }
+        } else {
+            showToast(data.error || 'Ошибка загрузки объявлений', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки объявлений:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        isLoadingListings = false;
+        if (skeleton) skeleton.style.display = 'none';
+    }
+}
+
+function renderListings(listings, append = false) {
+    const container = document.getElementById('listings-container');
+    if (!container) return;
+    
+    if (!append) container.innerHTML = '';
+    
+    if (!listings || listings.length === 0) {
+        if (!append) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <h3>Объявлений не найдено</h3>
+                    <p>Попробуйте изменить параметры поиска</p>
+                    <button class="btn-primary" onclick="resetFilters()">Сбросить фильтры</button>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    listings.forEach(listing => {
+        const card = createListingCard(listing);
+        container.appendChild(card);
+    });
+}
+
+function createListingCard(listing) {
+    const card = document.createElement('div');
+    card.className = 'listing-card';
+    card.dataset.id = listing.id;
+    
+    const firstPhoto = listing.photos?.[0] || '/images/placeholder.jpg';
+    const priceFormatted = formatPrice(listing.price);
+    const timeAgo = formatTime(listing.created_at);
+    
+    card.innerHTML = `
+        <div class="card-image">
+            <img data-src="${firstPhoto}" alt="${escapeHtml(listing.title)}" loading="lazy">
+            <button class="like-btn ${listing.isFavorite ? 'liked' : ''}" data-id="${listing.id}">
+                <span class="like-icon">❤️</span>
+                <span class="like-count">${formatNumber(listing.likes || 0)}</span>
+            </button>
+        </div>
+        <div class="card-content">
+            <div class="card-price">${priceFormatted}</div>
+            <div class="card-title">${escapeHtml(listing.title)}</div>
+            <div class="card-meta">
+                <span class="card-location">📍 ${escapeHtml(listing.city || 'Не указан')}</span>
+                <span class="card-time">🕒 ${timeAgo}</span>
+            </div>
+            <div class="card-seller">
+                <img class="seller-avatar" src="${listing.seller_avatar || '/images/default-avatar.png'}" alt="${escapeHtml(listing.seller_name)}">
+                <span class="seller-name">${escapeHtml(listing.seller_name)}</span>
+                <span class="seller-rating">⭐ ${listing.seller_rating || 0}</span>
+            </div>
+        </div>
+    `;
+    
+    // Обработчик лайка
+    const likeBtn = card.querySelector('.like-btn');
+    if (likeBtn) {
+        likeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleLike(likeBtn);
+        });
+    }
+    
+    // Клик по карточке
+    card.addEventListener('click', () => {
+        window.location.href = `/listing.html?id=${listing.id}`;
+    });
+    
+    // Ленивая загрузка изображений
+    const img = card.querySelector('img');
+    if (img && img.dataset.src) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
+            });
+        });
+        observer.observe(img);
+    }
+    
+    return card;
+}
+
+// ============================================
+// ЗАГРУЗКА ОДНОГО ОБЪЯВЛЕНИЯ
+// ============================================
+
+async function loadListing(listingId) {
+    const container = document.getElementById('listing-detail');
+    const skeleton = document.getElementById('listing-skeleton');
+    
+    if (skeleton) skeleton.style.display = 'block';
+    
+    try {
+        const response = await fetch(`/api/v1/listings/${listingId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderListingDetail(data.listing);
+            document.title = `${data.listing.title} — АЙДА`;
+        } else {
+            showToast(data.error || 'Объявление не найдено', 'error');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки объявления:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        if (skeleton) skeleton.style.display = 'none';
+    }
+}
+
+function renderListingDetail(listing) {
+    const container = document.getElementById('listing-detail');
+    if (!container) return;
+    
+    const photosHtml = renderPhotoGallery(listing.photos || []);
+    const sellerRating = renderStars(listing.seller?.rating || 0);
+    const timeAgo = formatTime(listing.created_at);
+    
+    container.innerHTML = `
+        <div class="listing-grid">
+            <div class="listing-gallery">
+                ${photosHtml}
+            </div>
+            <div class="listing-info">
+                <div class="listing-price">${formatPrice(listing.price)}</div>
+                <h1 class="listing-title">${escapeHtml(listing.title)}</h1>
+                <div class="listing-meta">
+                    <span class="listing-views">👁️ ${formatNumber(listing.views || 0)}</span>
+                    <span class="listing-likes">❤️ ${formatNumber(listing.likes || 0)}</span>
+                    <span class="listing-date">📅 ${timeAgo}</span>
+                </div>
+                <div class="listing-location">
+                    📍 ${escapeHtml(listing.city || 'Не указан')}
+                    ${listing.address ? `, ${escapeHtml(listing.address)}` : ''}
+                </div>
+                <div class="listing-description">
+                    <h3>Описание</h3>
+                    <p>${escapeHtml(listing.description || 'Нет описания')}</p>
+                </div>
+                ${listing.specs ? renderSpecs(listing.specs) : ''}
+                <div class="listing-actions">
+                    <button class="btn-primary chat-btn" data-user-id="${listing.user_id}" data-listing-id="${listing.id}">
+                        💬 Написать продавцу
+                    </button>
+                    <button class="btn-outline like-btn ${listing.isFavorite ? 'liked' : ''}" data-id="${listing.id}">
+                        ❤️ ${listing.isFavorite ? 'В избранном' : 'В избранное'}
+                    </button>
+                    <button class="btn-outline share-btn" data-id="${listing.id}">
+                        🔁 Поделиться
+                    </button>
+                </div>
+            </div>
+            <div class="listing-seller">
+                <div class="seller-card">
+                    <img class="seller-avatar-large" src="${listing.seller?.avatar || '/images/default-avatar.png'}" alt="${escapeHtml(listing.seller?.name)}">
+                    <div class="seller-name">${escapeHtml(listing.seller?.name)}</div>
+                    <div class="seller-rating">${sellerRating}</div>
+                    <div class="seller-stats">
+                        <div>📦 ${formatNumber(listing.seller?.stats?.listingsCount || 0)} объявлений</div>
+                        <div>⭐ ${listing.seller?.rating || 0} (${formatNumber(listing.seller?.stats?.reviewsCount || 0)} отзывов)</div>
+                        <div>📅 на сайте с ${new Date(listing.seller?.registeredAt).toLocaleDateString('ru-RU')}</div>
+                    </div>
+                    <button class="btn-secondary subscribe-btn" data-user-id="${listing.user_id}">
+                        ${listing.isSubscribed ? '✔️ Подписан' : '➕ Подписаться'}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="similar-listings">
+            <h3>Похожие объявления</h3>
+            <div class="similar-grid" id="similar-listings"></div>
+        </div>
+    `;
+    
+    // Загружаем похожие объявления
+    loadSimilarListings(listing.id);
+    
+    // Инициализация галереи
+    initPhotoGallery();
+    
+    // Обработчики кнопок
+    const chatBtn = container.querySelector('.chat-btn');
+    if (chatBtn) {
+        chatBtn.addEventListener('click', () => {
+            const userId = chatBtn.dataset.userId;
+            const listingId = chatBtn.dataset.listingId;
+            startChat(userId, listingId);
+        });
+    }
+    
+    const likeBtn = container.querySelector('.like-btn');
+    if (likeBtn) {
+        likeBtn.addEventListener('click', () => handleLike(likeBtn));
+    }
+    
+    const shareBtn = container.querySelector('.share-btn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', () => shareListing(listing.id));
+    }
+    
+    const subscribeBtn = container.querySelector('.subscribe-btn');
+    if (subscribeBtn) {
+        subscribeBtn.addEventListener('click', () => handleSubscribe(subscribeBtn));
+    }
+}
+
+function renderPhotoGallery(photos) {
+    if (!photos || photos.length === 0) {
+        return `
+            <div class="gallery-main">
+                <img src="/images/placeholder-large.jpg" alt="Нет фото">
+            </div>
+        `;
+    }
+    
+    const mainPhoto = photos[0];
+    const thumbnails = photos.slice(1, 5);
+    
+    return `
+        <div class="gallery-main">
+            <img id="gallery-main-img" src="${mainPhoto}" alt="Фото">
+        </div>
+        ${thumbnails.length > 0 ? `
+            <div class="gallery-thumbnails">
+                ${thumbnails.map(photo => `
+                    <div class="gallery-thumb" data-src="${photo}">
+                        <img src="${photo}" alt="Миниатюра">
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+    `;
+}
+
+function initPhotoGallery() {
+    const thumbs = document.querySelectorAll('.gallery-thumb');
+    const mainImg = document.getElementById('gallery-main-img');
+    
+    thumbs.forEach(thumb => {
+        thumb.addEventListener('click', () => {
+            const src = thumb.dataset.src;
+            if (mainImg && src) {
+                mainImg.src = src;
+            }
+        });
+    });
+}
+
+function renderStars(rating) {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    let stars = '';
+    for (let i = 0; i < fullStars; i++) stars += '★';
+    if (halfStar) stars += '½';
+    for (let i = stars.length; i < 5; i++) stars += '☆';
+    return stars;
+}
+
+function renderSpecs(specs) {
+    if (!specs || Object.keys(specs).length === 0) return '';
+    
+    return `
+        <div class="listing-specs">
+            <h3>Характеристики</h3>
+            <div class="specs-grid">
+                ${Object.entries(specs).map(([key, value]) => `
+                    <div class="spec-item">
+                        <span class="spec-key">${escapeHtml(key)}</span>
+                        <span class="spec-value">${escapeHtml(value)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+async function loadSimilarListings(listingId) {
+    try {
+        const response = await fetch(`/api/v1/listings/similar/${listingId}?limit=6`);
+        const data = await response.json();
+        
+        const container = document.getElementById('similar-listings');
+        if (container && data.listings && data.listings.length > 0) {
+            container.innerHTML = data.listings.map(listing => createSimilarCard(listing)).join('');
+        } else if (container) {
+            container.innerHTML = '<p class="no-similar">Похожих объявлений не найдено</p>';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки похожих объявлений:', error);
+    }
+}
+
+function createSimilarCard(listing) {
+    const priceFormatted = formatPrice(listing.price);
+    const firstPhoto = listing.photos?.[0] || '/images/placeholder.jpg';
+    
+    return `
+        <div class="similar-card" onclick="location.href='/listing.html?id=${listing.id}'">
+            <img src="${firstPhoto}" alt="${escapeHtml(listing.title)}" loading="lazy">
+            <div class="similar-price">${priceFormatted}</div>
+            <div class="similar-title">${escapeHtml(listing.title)}</div>
+        </div>
+    `;
+}
+
+// ============================================
+// СОЗДАНИЕ ОБЪЯВЛЕНИЯ
+// ============================================
+
+let uploadedPhotos = [];
+let photoPreviews = [];
+
+async function createListing(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    // Добавляем фото
+    uploadedPhotos.forEach(photo => {
+        formData.append('photos', photo.file);
+    });
+    
+    const submitBtn = form.querySelector('[type="submit"]');
+    const originalText = submitBtn?.textContent;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Публикация...';
+    }
+    
+    try {
+        const response = await fetch('/api/v1/listings', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('Объявление успешно создано!', 'success');
+            setTimeout(() => {
+                window.location.href = `/listing.html?id=${data.listing.id}`;
+            }, 1500);
+        } else {
+            showToast(data.error || 'Ошибка создания объявления', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка создания:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+}
+
+function initImageUpload() {
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('photos');
+    const previewContainer = document.getElementById('photo-preview');
+    
+    if (!dropzone) return;
+    
+    // Клик для выбора файлов
+    dropzone.addEventListener('click', () => fileInput?.click());
+    
+    // Drag & Drop
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+    
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+    
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files);
+        handleFiles(files);
+    });
+    
+    // Выбор файлов
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+    }
+    
+    // Категории
+    loadCategoriesSelect();
+}
+
+function handleFiles(files) {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    
+    if (uploadedPhotos.length + imageFiles.length > 10) {
+        showToast('Максимум 10 фото', 'error');
+        return;
+    }
+    
+    imageFiles.forEach(file => {
+        if (file.size > 10 * 1024 * 1024) {
+            showToast(`Файл ${file.name} превышает 10MB`, 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            photoPreviews.push(e.target.result);
+            uploadedPhotos.push({ file, preview: e.target.result });
+            renderPhotoPreviews();
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderPhotoPreviews() {
+    const container = document.getElementById('photo-preview');
+    if (!container) return;
+    
+    if (photoPreviews.length === 0) {
+        container.innerHTML = '<div class="empty-photos">📸 Нажмите или перетащите фото</div>';
+        return;
+    }
+    
+    container.innerHTML = photoPreviews.map((preview, index) => `
+        <div class="photo-preview-item">
+            <img src="${preview}" alt="Фото ${index + 1}">
+            <button type="button" class="remove-photo" data-index="${index}">✕</button>
+        </div>
+    `).join('');
+    
+    // Обработчики удаления
+    document.querySelectorAll('.remove-photo').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const index = parseInt(btn.dataset.index);
+            photoPreviews.splice(index, 1);
+            uploadedPhotos.splice(index, 1);
+            renderPhotoPreviews();
+        });
+    });
+}
+
+async function loadCategoriesSelect() {
+    const select = document.getElementById('category_id');
+    if (!select) return;
+    
+    try {
+        const response = await fetch('/api/v1/categories');
+        const data = await response.json();
+        
+        if (response.ok) {
+            select.innerHTML = '<option value="">Выберите категорию</option>' + 
+                data.categories.map(cat => `
+                    <option value="${cat.id}">${escapeHtml(cat.name)}</option>
+                `).join('');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки категорий:', error);
+    }
+}
+
+// ============================================
+// РЕДАКТИРОВАНИЕ ОБЪЯВЛЕНИЯ
+// ============================================
+
+async function loadListingForEdit(listingId) {
+    try {
+        const response = await fetch(`/api/v1/listings/${listingId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            fillEditForm(data.listing);
+        } else {
+            showToast('Объявление не найдено', 'error');
+            window.location.href = '/profile.html';
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка загрузки объявления', 'error');
+    }
+}
+
+function fillEditForm(listing) {
+    const form = document.getElementById('edit-listing-form');
+    if (!form) return;
+    
+    form.querySelector('[name="title"]').value = listing.title;
+    form.querySelector('[name="description"]').value = listing.description || '';
+    form.querySelector('[name="price"]').value = listing.price;
+    form.querySelector('[name="city"]').value = listing.city || '';
+    form.querySelector('[name="category_id"]').value = listing.category_id;
+    
+    // Показываем существующие фото
+    const existingPhotosContainer = document.getElementById('existing-photos');
+    if (existingPhotosContainer && listing.photos) {
+        existingPhotosContainer.innerHTML = listing.photos.map((photo, index) => `
+            <div class="existing-photo" data-id="${photo.id}">
+                <img src="${photo.url}" alt="Фото">
+                <button type="button" class="delete-existing-photo" data-id="${photo.id}">✕</button>
+            </div>
+        `).join('');
+        
+        // Обработчики удаления существующих фото
+        document.querySelectorAll('.delete-existing-photo').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const photoId = btn.dataset.id;
+                const deletedPhotosInput = document.getElementById('deleted_photos');
+                if (deletedPhotosInput) {
+                    const deleted = JSON.parse(deletedPhotosInput.value || '[]');
+                    deleted.push(parseInt(photoId));
+                    deletedPhotosInput.value = JSON.stringify(deleted);
+                }
+                btn.closest('.existing-photo')?.remove();
+            });
+        });
+    }
+}
+
+async function updateListing(event, listingId) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    // Добавляем новые фото
+    uploadedPhotos.forEach(photo => {
+        formData.append('new_photos', photo.file);
+    });
+    
+    const submitBtn = form.querySelector('[type="submit"]');
+    const originalText = submitBtn?.textContent;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Сохранение...';
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/listings/${listingId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('Объявление обновлено!', 'success');
+            setTimeout(() => {
+                window.location.href = `/listing.html?id=${listingId}`;
+            }, 1500);
+        } else {
+            showToast(data.error || 'Ошибка обновления', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+}
+
+// ============================================
+// УДАЛЕНИЕ ОБЪЯВЛЕНИЯ
+// ============================================
+
+async function deleteListing(listingId) {
+    if (!confirm('Вы уверены, что хотите удалить это объявление?')) return;
+    
+    try {
+        const response = await fetch(`/api/v1/listings/${listingId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            showToast('Объявление удалено', 'success');
+            setTimeout(() => {
+                window.location.href = '/profile.html';
+            }, 1000);
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка удаления', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    }
+}
+
+// ============================================
+// ОТМЕТКА ПРОДАНО
+// ============================================
+
+async function markAsSold(listingId) {
+    if (!confirm('Отметить объявление как проданное?')) return;
+    
+    try {
+        const response = await fetch(`/api/v1/listings/${listingId}/sold`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            showToast('Объявление отмечено как проданное! +50 бонусов', 'success');
+            location.reload();
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    }
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.loadListings = loadListings;
+window.loadListing = loadListing;
+window.createListing = createListing;
+window.updateListing = updateListing;
+window.deleteListing = deleteListing;
+window.markAsSold = markAsSold;
+window.loadListingForEdit = loadListingForEdit;

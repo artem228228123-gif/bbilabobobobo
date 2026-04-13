@@ -1,0 +1,542 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/favorites.js
+ * Описание: Избранное (добавление/удаление, список, уведомления, синхронизация)
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let favoritesList = [];
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+let favoritesCount = 0;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+function initFavorites() {
+    loadFavorites();
+    setupFavoritesEvents();
+}
+
+async function loadFavorites(append = false) {
+    if (isLoading) return;
+    
+    isLoading = true;
+    
+    const container = document.getElementById('favorites-container');
+    const skeleton = document.getElementById('favorites-skeleton');
+    const emptyState = document.getElementById('favorites-empty');
+    
+    if (!append && skeleton) skeleton.style.display = 'block';
+    
+    try {
+        const response = await fetch(`/api/v1/favorites?limit=20&page=${append ? currentPage : 1}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            if (append) {
+                renderFavorites(data.listings, true);
+                currentPage++;
+                hasMore = data.hasMore;
+            } else {
+                favoritesList = data.listings;
+                renderFavorites(data.listings, false);
+                currentPage = 2;
+                hasMore = data.hasMore;
+                favoritesCount = data.total || data.listings.length;
+                updateFavoritesCount();
+            }
+            
+            // Показываем/скрываем пустое состояние
+            if (emptyState) {
+                emptyState.style.display = favoritesList.length === 0 ? 'block' : 'none';
+            }
+        } else {
+            showToast(data.error || 'Ошибка загрузки избранного', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки избранного:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        isLoading = false;
+        if (skeleton) skeleton.style.display = 'none';
+    }
+}
+
+function renderFavorites(listings, append = false) {
+    const container = document.getElementById('favorites-container');
+    if (!container) return;
+    
+    if (!append) container.innerHTML = '';
+    
+    if (!listings || listings.length === 0) {
+        if (!append) {
+            container.innerHTML = '';
+        }
+        return;
+    }
+    
+    listings.forEach(listing => {
+        const card = createFavoriteCard(listing);
+        container.appendChild(card);
+    });
+}
+
+function createFavoriteCard(listing) {
+    const card = document.createElement('div');
+    card.className = 'favorite-card';
+    card.dataset.id = listing.id;
+    
+    const firstPhoto = listing.photos?.[0] || listing.photo_url || '/images/placeholder.jpg';
+    const priceFormatted = formatPrice(listing.price);
+    const timeAgo = formatTime(listing.created_at);
+    const favoritedAt = formatTime(listing.favorited_at);
+    
+    card.innerHTML = `
+        <div class="favorite-card-image">
+            <img data-src="${firstPhoto}" alt="${escapeHtml(listing.title)}" loading="lazy">
+            <button class="remove-favorite-btn" data-id="${listing.id}" title="Удалить из избранного">
+                ✕
+            </button>
+        </div>
+        <div class="favorite-card-content">
+            <div class="favorite-card-price">${priceFormatted}</div>
+            <div class="favorite-card-title">${escapeHtml(listing.title)}</div>
+            <div class="favorite-card-meta">
+                <span class="favorite-location">📍 ${escapeHtml(listing.city || 'Не указан')}</span>
+                <span class="favorite-time">🕒 ${timeAgo}</span>
+            </div>
+            <div class="favorite-card-seller">
+                <img class="seller-avatar" src="${listing.seller_avatar || '/images/default-avatar.png'}" alt="${escapeHtml(listing.seller_name)}">
+                <span class="seller-name">${escapeHtml(listing.seller_name)}</span>
+                <span class="seller-rating">⭐ ${listing.seller_rating || 0}</span>
+            </div>
+            <div class="favorite-card-actions">
+                <button class="btn-secondary view-listing" data-id="${listing.id}">📖 Посмотреть</button>
+                <button class="btn-outline chat-seller" data-user-id="${listing.user_id}" data-listing-id="${listing.id}">💬 Написать</button>
+            </div>
+            <div class="favorite-added">Добавлено: ${favoritedAt}</div>
+        </div>
+    `;
+    
+    // Ленивая загрузка изображения
+    const img = card.querySelector('img');
+    if (img && img.dataset.src) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
+            });
+        });
+        observer.observe(img);
+    }
+    
+    // Кнопка удаления
+    const removeBtn = card.querySelector('.remove-favorite-btn');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeFromFavorites(listing.id);
+        });
+    }
+    
+    // Просмотр объявления
+    const viewBtn = card.querySelector('.view-listing');
+    if (viewBtn) {
+        viewBtn.addEventListener('click', () => {
+            window.location.href = `/listing.html?id=${listing.id}`;
+        });
+    }
+    
+    // Чат с продавцом
+    const chatBtn = card.querySelector('.chat-seller');
+    if (chatBtn) {
+        chatBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const userId = chatBtn.dataset.userId;
+            const listingId = chatBtn.dataset.listingId;
+            startChat(userId, listingId);
+        });
+    }
+    
+    // Клик по карточке
+    card.addEventListener('click', (e) => {
+        if (!e.target.closest('button')) {
+            window.location.href = `/listing.html?id=${listing.id}`;
+        }
+    });
+    
+    return card;
+}
+
+// ============================================
+// ДОБАВЛЕНИЕ/УДАЛЕНИЕ ИЗ ИЗБРАННОГО
+// ============================================
+
+async function addToFavorites(listingId) {
+    if (!isAuthenticated()) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
+        window.location.href = '/login.html';
+        return false;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/favorites/${listingId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            favoritesCount++;
+            updateFavoritesCount();
+            
+            // Обновляем UI кнопки лайка
+            updateLikeButton(listingId, true);
+            
+            showToast('Добавлено в избранное', 'success');
+            
+            // Анимация сердечка
+            animateHeart();
+            
+            return true;
+        } else if (response.status === 401) {
+            sessionStorage.setItem('redirectAfterLogin', window.location.href);
+            window.location.href = '/login.html';
+            return false;
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка', 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Ошибка добавления в избранное:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+        return false;
+    }
+}
+
+async function removeFromFavorites(listingId) {
+    try {
+        const response = await fetch(`/api/v1/favorites/${listingId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            favoritesCount--;
+            updateFavoritesCount();
+            
+            // Обновляем UI кнопки лайка
+            updateLikeButton(listingId, false);
+            
+            // Удаляем карточку из списка избранного
+            const card = document.querySelector(`.favorite-card[data-id="${listingId}"]`);
+            if (card) {
+                card.remove();
+            }
+            
+            // Фильтруем локальный список
+            favoritesList = favoritesList.filter(l => l.id !== parseInt(listingId));
+            
+            // Проверяем пустое состояние
+            const container = document.getElementById('favorites-container');
+            const emptyState = document.getElementById('favorites-empty');
+            if (container && emptyState) {
+                if (favoritesList.length === 0) {
+                    container.innerHTML = '';
+                    emptyState.style.display = 'block';
+                }
+            }
+            
+            showToast('Удалено из избранного', 'info');
+            return true;
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка', 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Ошибка удаления из избранного:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+        return false;
+    }
+}
+
+async function toggleFavorite(listingId, isLiked) {
+    if (isLiked) {
+        return await removeFromFavorites(listingId);
+    } else {
+        return await addToFavorites(listingId);
+    }
+}
+
+// ============================================
+// UI ОБНОВЛЕНИЯ
+// ============================================
+
+function updateLikeButton(listingId, isLiked) {
+    // Обновляем кнопки на всех страницах
+    const likeBtns = document.querySelectorAll(`.like-btn[data-id="${listingId}"]`);
+    
+    likeBtns.forEach(btn => {
+        if (isLiked) {
+            btn.classList.add('liked');
+            const countSpan = btn.querySelector('.like-count');
+            if (countSpan) {
+                const current = parseInt(countSpan.textContent) || 0;
+                countSpan.textContent = current + 1;
+            }
+        } else {
+            btn.classList.remove('liked');
+            const countSpan = btn.querySelector('.like-count');
+            if (countSpan) {
+                const current = parseInt(countSpan.textContent) || 0;
+                countSpan.textContent = Math.max(0, current - 1);
+            }
+        }
+    });
+}
+
+function updateFavoritesCount() {
+    const countElements = document.querySelectorAll('.favorites-count');
+    countElements.forEach(el => {
+        el.textContent = favoritesCount;
+        if (favoritesCount > 0) {
+            el.style.display = 'inline-block';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+    
+    // Обновляем бейдж в хедере
+    const badge = document.querySelector('.favorites-badge');
+    if (badge) {
+        if (favoritesCount > 0) {
+            badge.textContent = favoritesCount > 99 ? '99+' : favoritesCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+function animateHeart() {
+    const heart = document.createElement('div');
+    heart.className = 'floating-heart-global';
+    heart.innerHTML = '❤️';
+    heart.style.left = '50%';
+    heart.style.top = '50%';
+    heart.style.transform = 'translate(-50%, -50%)';
+    document.body.appendChild(heart);
+    
+    setTimeout(() => {
+        heart.remove();
+    }, 1000);
+}
+
+// ============================================
+// ЗАГРУЗКА КОЛИЧЕСТВА ИЗБРАННОГО
+// ============================================
+
+async function loadFavoritesCount() {
+    if (!isAuthenticated()) return;
+    
+    try {
+        const response = await fetch('/api/v1/favorites/count', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            favoritesCount = data.count;
+            updateFavoritesCount();
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки количества избранного:', error);
+    }
+}
+
+// ============================================
+// ПРОВЕРКА В ИЗБРАННОМ
+// ============================================
+
+async function checkIsFavorite(listingId) {
+    if (!isAuthenticated()) return false;
+    
+    try {
+        const response = await fetch(`/api/v1/favorites/check/${listingId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.isFavorite;
+        }
+        return false;
+    } catch (error) {
+        console.error('Ошибка проверки избранного:', error);
+        return false;
+    }
+}
+
+// ============================================
+// МАССОВЫЕ ОПЕРАЦИИ
+// ============================================
+
+async function clearAllFavorites() {
+    if (!confirm('Вы уверены, что хотите удалить все объявления из избранного?')) return;
+    
+    try {
+        const response = await fetch('/api/v1/favorites/clear', {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            favoritesList = [];
+            favoritesCount = 0;
+            updateFavoritesCount();
+            
+            const container = document.getElementById('favorites-container');
+            const emptyState = document.getElementById('favorites-empty');
+            if (container) container.innerHTML = '';
+            if (emptyState) emptyState.style.display = 'block';
+            
+            showToast('Избранное очищено', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка очистки избранного:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    }
+}
+
+// ============================================
+// ЭКСПОРТ В CSV
+// ============================================
+
+function exportFavoritesToCSV() {
+    if (favoritesList.length === 0) {
+        showToast('Нет объявлений для экспорта', 'error');
+        return;
+    }
+    
+    const headers = ['ID', 'Название', 'Цена', 'Город', 'Продавец', 'Дата добавления'];
+    const rows = favoritesList.map(item => [
+        item.id,
+        item.title,
+        item.price,
+        item.city || '',
+        item.seller_name,
+        new Date(item.favorited_at).toLocaleDateString('ru-RU')
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.href = url;
+    link.setAttribute('download', 'favorites.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showToast('Экспорт завершён', 'success');
+}
+
+// ============================================
+// СОБЫТИЯ
+// ============================================
+
+function setupFavoritesEvents() {
+    // Кнопка очистки избранного
+    const clearBtn = document.getElementById('clear-favorites');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearAllFavorites);
+    }
+    
+    // Кнопка экспорта
+    const exportBtn = document.getElementById('export-favorites');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportFavoritesToCSV);
+    }
+    
+    // Бесконечная прокрутка
+    setupInfiniteScroll();
+}
+
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        if (isLoading || !hasMore) return;
+        
+        const scrollPosition = window.scrollY + window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        if (scrollPosition >= documentHeight - 500) {
+            loadFavorites(true);
+        }
+    });
+}
+
+// ============================================
+// СИНХРОНИЗАЦИЯ МЕЖДУ ВКЛАДКАМИ
+// ============================================
+
+function setupCrossTabSync() {
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'favorites_updated') {
+            loadFavorites();
+            loadFavoritesCount();
+        }
+    });
+}
+
+function notifyFavoritesUpdated() {
+    localStorage.setItem('favorites_updated', Date.now().toString());
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initFavorites = initFavorites;
+window.loadFavorites = loadFavorites;
+window.addToFavorites = addToFavorites;
+window.removeFromFavorites = removeFromFavorites;
+window.toggleFavorite = toggleFavorite;
+window.checkIsFavorite = checkIsFavorite;
+window.loadFavoritesCount = loadFavoritesCount;
+window.clearAllFavorites = clearAllFavorites;
+window.exportFavoritesToCSV = exportFavoritesToCSV;
+
+// Запуск
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('favorites.html')) {
+        initFavorites();
+    }
+    loadFavoritesCount();
+    setupCrossTabSync();
+});

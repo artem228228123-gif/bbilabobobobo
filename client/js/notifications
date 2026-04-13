@@ -1,0 +1,588 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/notifications.js
+ * Описание: Уведомления (push, email, список уведомлений, подписка, звуки)
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let notificationsList = [];
+let unreadCount = 0;
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+let notificationSound = null;
+let pushSubscription = null;
+let isPushSupported = false;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+function initNotifications() {
+    loadNotifications();
+    initNotificationSound();
+    initPushNotifications();
+    initWebSocketNotifications();
+    setupNotificationEvents();
+    
+    // Периодическое обновление (каждые 30 секунд)
+    setInterval(() => {
+        loadUnreadCount();
+    }, 30000);
+}
+
+async function loadNotifications(append = false) {
+    if (isLoading) return;
+    isLoading = true;
+    
+    const container = document.getElementById('notifications-list');
+    const skeleton = document.getElementById('notifications-skeleton');
+    
+    if (!append && skeleton) skeleton.style.display = 'block';
+    
+    try {
+        const response = await fetch(`/api/v1/notifications?limit=20&page=${append ? currentPage : 1}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (append) {
+                notificationsList.push(...data.notifications);
+                renderNotifications(true);
+                currentPage++;
+                hasMore = data.hasMore;
+            } else {
+                notificationsList = data.notifications;
+                renderNotifications(false);
+                currentPage = 2;
+                hasMore = data.hasMore;
+                unreadCount = data.unread_count;
+                updateUnreadBadge();
+            }
+            
+            // Показываем/скрываем кнопку "Загрузить ещё"
+            const loadMoreBtn = document.getElementById('load-more-notifications');
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = hasMore ? 'block' : 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки уведомлений:', error);
+        showToast('Ошибка загрузки уведомлений', 'error');
+    } finally {
+        isLoading = false;
+        if (skeleton) skeleton.style.display = 'none';
+    }
+}
+
+async function loadUnreadCount() {
+    try {
+        const response = await fetch('/api/v1/notifications/unread/count', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            unreadCount = data.count;
+            updateUnreadBadge();
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки количества:', error);
+    }
+}
+
+function renderNotifications(append = false) {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    
+    if (!append) container.innerHTML = '';
+    
+    if (notificationsList.length === 0) {
+        container.innerHTML = `
+            <div class="empty-notifications">
+                <div class="empty-icon">🔔</div>
+                <h3>Нет уведомлений</h3>
+                <p>Здесь будут появляться уведомления о новых сообщениях, лайках и других событиях</p>
+            </div>
+        `;
+        return;
+    }
+    
+    notificationsList.forEach(notif => {
+        const notifEl = createNotificationElement(notif);
+        container.appendChild(notifEl);
+    });
+}
+
+function createNotificationElement(notification) {
+    const div = document.createElement('div');
+    div.className = `notification-item ${notification.is_read ? 'read' : 'unread'}`;
+    div.dataset.id = notification.id;
+    
+    const timeAgo = formatTime(notification.created_at);
+    const icon = getNotificationIcon(notification.type);
+    
+    div.innerHTML = `
+        <div class="notification-icon">${icon}</div>
+        <div class="notification-content">
+            <div class="notification-title">${escapeHtml(notification.title)}</div>
+            <div class="notification-message">${escapeHtml(notification.message)}</div>
+            <div class="notification-time">${timeAgo}</div>
+        </div>
+        <div class="notification-actions">
+            ${!notification.is_read ? '<button class="mark-read-btn" title="Отметить как прочитанное">✓</button>' : ''}
+            <button class="delete-notif-btn" title="Удалить">✕</button>
+        </div>
+    `;
+    
+    // Клик по уведомлению
+    div.addEventListener('click', (e) => {
+        if (!e.target.closest('.notification-actions')) {
+            handleNotificationClick(notification);
+        }
+    });
+    
+    // Кнопка "прочитано"
+    const markReadBtn = div.querySelector('.mark-read-btn');
+    if (markReadBtn) {
+        markReadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            markAsRead(notification.id);
+        });
+    }
+    
+    // Кнопка удаления
+    const deleteBtn = div.querySelector('.delete-notif-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteNotification(notification.id);
+        });
+    }
+    
+    return div;
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        'message': '💬',
+        'like': '❤️',
+        'sale': '💰',
+        'review': '⭐',
+        'lottery': '🎰',
+        'system': '🔔',
+        'listing_approved': '✅',
+        'listing_rejected': '❌',
+        'account_blocked': '🔒'
+    };
+    return icons[type] || '📢';
+}
+
+async function markAsRead(notificationId) {
+    try {
+        const response = await fetch('/api/v1/notifications/mark-read', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ ids: [notificationId] })
+        });
+        
+        if (response.ok) {
+            const notif = notificationsList.find(n => n.id === notificationId);
+            if (notif) notif.is_read = true;
+            
+            const element = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+            if (element) {
+                element.classList.remove('unread');
+                element.classList.add('read');
+                element.querySelector('.mark-read-btn')?.remove();
+            }
+            
+            unreadCount = Math.max(0, unreadCount - 1);
+            updateUnreadBadge();
+        }
+    } catch (error) {
+        console.error('Ошибка отметки прочтения:', error);
+    }
+}
+
+async function markAllAsRead() {
+    if (notificationsList.length === 0) return;
+    
+    try {
+        const response = await fetch('/api/v1/notifications/mark-read', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ all: true })
+        });
+        
+        if (response.ok) {
+            notificationsList.forEach(n => n.is_read = true);
+            renderNotifications(false);
+            unreadCount = 0;
+            updateUnreadBadge();
+            showToast('Все уведомления отмечены как прочитанные', 'success');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка', 'error');
+    }
+}
+
+async function deleteNotification(notificationId) {
+    try {
+        const response = await fetch(`/api/v1/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (response.ok) {
+            const index = notificationsList.findIndex(n => n.id === notificationId);
+            if (index !== -1) {
+                const wasUnread = !notificationsList[index].is_read;
+                notificationsList.splice(index, 1);
+                if (wasUnread) unreadCount--;
+                renderNotifications(false);
+                updateUnreadBadge();
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка удаления:', error);
+        showToast('Ошибка удаления', 'error');
+    }
+}
+
+function handleNotificationClick(notification) {
+    // Отмечаем как прочитанное
+    if (!notification.is_read) {
+        markAsRead(notification.id);
+    }
+    
+    // Переход по ссылке
+    if (notification.link) {
+        window.location.href = notification.link;
+    } else if (notification.data) {
+        switch (notification.type) {
+            case 'message':
+                if (notification.data.chat_id) {
+                    window.location.href = `/chats.html?chat=${notification.data.chat_id}`;
+                }
+                break;
+            case 'like':
+            case 'listing_approved':
+            case 'listing_rejected':
+                if (notification.data.listing_id) {
+                    window.location.href = `/listing.html?id=${notification.data.listing_id}`;
+                }
+                break;
+            case 'sale':
+                window.location.href = '/profile.html?tab=sales';
+                break;
+            case 'lottery':
+                window.location.href = '/profile.html?tab=bonus';
+                break;
+            default:
+                // Ничего не делаем
+                break;
+        }
+    }
+}
+
+function updateUnreadBadge() {
+    const badge = document.querySelector('.notifications-badge');
+    const headerIcon = document.querySelector('.notifications-icon');
+    
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    if (headerIcon) {
+        headerIcon.classList.toggle('has-unread', unreadCount > 0);
+    }
+}
+
+// ============================================
+// ЗВУКИ УВЕДОМЛЕНИЙ
+// ============================================
+
+function initNotificationSound() {
+    notificationSound = new Audio('/sounds/notification.mp3');
+    notificationSound.volume = 0.5;
+    
+    // Проверяем настройки звука
+    const soundEnabled = localStorage.getItem('notification_sound') !== 'false';
+    if (!soundEnabled) return;
+}
+
+function playNotificationSound() {
+    if (notificationSound && localStorage.getItem('notification_sound') !== 'false') {
+        notificationSound.play().catch(e => console.log('Звук не воспроизведён:', e));
+    }
+}
+
+// ============================================
+// PUSH УВЕДОМЛЕНИЯ
+// ============================================
+
+async function initPushNotifications() {
+    isPushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+    
+    if (!isPushSupported) {
+        console.log('Push-уведомления не поддерживаются');
+        return;
+    }
+    
+    // Проверяем подписку
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    
+    if (subscription) {
+        pushSubscription = subscription;
+        console.log('Push-подписка активна');
+    }
+    
+    // Запрашиваем разрешение если нужно
+    const permission = Notification.permission;
+    if (permission === 'default') {
+        // Не запрашиваем автоматически, ждём действия пользователя
+    } else if (permission === 'granted') {
+        await subscribeToPush();
+    }
+}
+
+async function subscribeToPush() {
+    if (!isPushSupported) {
+        showToast('Push-уведомления не поддерживаются вашим браузером', 'error');
+        return false;
+    }
+    
+    if (Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            showToast('Разрешите уведомления в настройках браузера', 'error');
+            return false;
+        }
+    }
+    
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array('YOUR_VAPID_PUBLIC_KEY')
+        });
+        
+        // Отправляем подписку на сервер
+        const response = await fetch('/api/v1/notifications/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ subscription })
+        });
+        
+        if (response.ok) {
+            pushSubscription = subscription;
+            showToast('Push-уведомления включены', 'success');
+            return true;
+        }
+    } catch (error) {
+        console.error('Ошибка подписки на push:', error);
+        showToast('Ошибка включения push-уведомлений', 'error');
+        return false;
+    }
+}
+
+async function unsubscribeFromPush() {
+    if (!pushSubscription) return;
+    
+    try {
+        await pushSubscription.unsubscribe();
+        
+        await fetch('/api/v1/notifications/unsubscribe', {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        pushSubscription = null;
+        showToast('Push-уведомления отключены', 'info');
+    } catch (error) {
+        console.error('Ошибка отписки:', error);
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// ============================================
+// WEBSOCKET УВЕДОМЛЕНИЯ В РЕАЛЬНОМ ВРЕМЕНИ
+// ============================================
+
+function initWebSocketNotifications() {
+    if (!window.AIDA?.state?.socket) return;
+    
+    const socket = window.AIDA.state.socket;
+    
+    socket.on('new_notification', (data) => {
+        addRealTimeNotification(data);
+        playNotificationSound();
+        showToast(data.title, data.type);
+    });
+    
+    socket.on('unread_count_update', (data) => {
+        unreadCount = data.count;
+        updateUnreadBadge();
+    });
+}
+
+function addRealTimeNotification(notification) {
+    // Добавляем в начало списка
+    notificationsList.unshift(notification);
+    unreadCount++;
+    updateUnreadBadge();
+    
+    // Обновляем UI если страница уведомлений открыта
+    if (document.getElementById('notifications-list')) {
+        const container = document.getElementById('notifications-list');
+        const notifEl = createNotificationElement(notification);
+        container.insertBefore(notifEl, container.firstChild);
+        
+        // Показываем тост
+        showNotificationToast(notification);
+    }
+    
+    playNotificationSound();
+}
+
+function showNotificationToast(notification) {
+    // Создаём всплывающее уведомление
+    const toast = document.createElement('div');
+    toast.className = 'notification-toast';
+    toast.innerHTML = `
+        <div class="toast-icon">${getNotificationIcon(notification.type)}</div>
+        <div class="toast-content">
+            <div class="toast-title">${escapeHtml(notification.title)}</div>
+            <div class="toast-message">${escapeHtml(notification.message)}</div>
+        </div>
+    `;
+    
+    toast.addEventListener('click', () => {
+        handleNotificationClick(notification);
+        toast.remove();
+    });
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
+// ============================================
+// НАСТРОЙКИ УВЕДОМЛЕНИЙ
+// ============================================
+
+function setupNotificationEvents() {
+    // Кнопка "Отметить все как прочитанные"
+    const markAllBtn = document.getElementById('mark-all-read');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', markAllAsRead);
+    }
+    
+    // Кнопка "Загрузить ещё"
+    const loadMoreBtn = document.getElementById('load-more-notifications');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', () => loadNotifications(true));
+    }
+    
+    // Настройки звука
+    const soundToggle = document.getElementById('notification-sound');
+    if (soundToggle) {
+        const soundEnabled = localStorage.getItem('notification_sound') !== 'false';
+        soundToggle.checked = soundEnabled;
+        soundToggle.addEventListener('change', (e) => {
+            localStorage.setItem('notification_sound', e.target.checked);
+        });
+    }
+    
+    // Кнопка включения push
+    const enablePushBtn = document.getElementById('enable-push');
+    if (enablePushBtn) {
+        enablePushBtn.addEventListener('click', subscribeToPush);
+    }
+    
+    // Кнопка отключения push
+    const disablePushBtn = document.getElementById('disable-push');
+    if (disablePushBtn) {
+        disablePushBtn.addEventListener('click', unsubscribeFromPush);
+    }
+}
+
+// ============================================
+// БРАУЗЕРНЫЕ УВЕДОМЛЕНИЯ
+// ============================================
+
+function showBrowserNotification(title, body, icon = '/icons/icon-192.png') {
+    if (Notification.permission !== 'granted') return;
+    
+    const notification = new Notification(title, {
+        body: body,
+        icon: icon,
+        badge: '/icons/icon-72.png',
+        vibrate: [200, 100, 200],
+        silent: localStorage.getItem('notification_sound') === 'false'
+    });
+    
+    notification.onclick = () => {
+        window.focus();
+        notification.close();
+    };
+    
+    setTimeout(() => notification.close(), 10000);
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initNotifications = initNotifications;
+window.markAllAsRead = markAllAsRead;
+window.subscribeToPush = subscribeToPush;
+window.unsubscribeFromPush = unsubscribeFromPush;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('notifications.html')) {
+        initNotifications();
+    }
+});

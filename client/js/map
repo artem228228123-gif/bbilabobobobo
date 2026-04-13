@@ -1,0 +1,659 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/map.js
+ * Описание: Карта объявлений (OpenStreetMap, маркеры, кластеризация, маршруты, геолокация)
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let map = null;
+let markersLayer = null;
+let markers = [];
+let currentBounds = null;
+let currentFilters = {
+    category_id: null,
+    price_min: null,
+    price_max: null,
+    radius: 50,
+    lat: null,
+    lng: null
+};
+let isMapLoading = false;
+let userLocation = null;
+let routeControl = null;
+
+// Конфигурация карты
+const MAP_CONFIG = {
+    center: [55.751244, 37.618423], // Москва
+    zoom: 10,
+    maxZoom: 18,
+    minZoom: 3,
+    tileLayer: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+};
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ КАРТЫ
+// ============================================
+
+function initMap() {
+    const container = document.getElementById('map-container');
+    if (!container) return;
+    
+    // Создаём карту
+    map = L.map('map-container').setView(MAP_CONFIG.center, MAP_CONFIG.zoom);
+    
+    // Добавляем тайлы OpenStreetMap
+    L.tileLayer(MAP_CONFIG.tileLayer, {
+        attribution: MAP_CONFIG.attribution,
+        maxZoom: MAP_CONFIG.maxZoom,
+        minZoom: MAP_CONFIG.minZoom
+    }).addTo(map);
+    
+    // Создаём слой для маркеров с кластеризацией
+    markersLayer = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 50,
+        iconCreateFunction: (cluster) => {
+            const count = cluster.getChildCount();
+            let color = '#10b981';
+            if (count > 100) color = '#ef4444';
+            else if (count > 50) color = '#f59e0b';
+            else if (count > 10) color = '#3b82f6';
+            
+            return L.divIcon({
+                html: `<div style="background-color: ${color};" class="cluster-marker">${count}</div>`,
+                className: 'cluster-icon',
+                iconSize: L.point(40, 40)
+            });
+        }
+    });
+    
+    map.addLayer(markersLayer);
+    
+    // Обработчики событий
+    map.on('moveend', () => {
+        updateBounds();
+        loadMarkers();
+    });
+    
+    map.on('zoomend', () => {
+        updateBounds();
+        loadMarkers();
+    });
+    
+    // Инициализация UI элементов
+    initMapControls();
+    
+    // Загружаем начальные маркеры
+    loadMarkers();
+}
+
+function initMapControls() {
+    // Кнопка геолокации
+    const locateBtn = document.getElementById('locate-me');
+    if (locateBtn) {
+        locateBtn.addEventListener('click', locateUser);
+    }
+    
+    // Поиск адреса
+    const addressInput = document.getElementById('address-search');
+    const addressSearchBtn = document.getElementById('address-search-btn');
+    if (addressInput && addressSearchBtn) {
+        addressSearchBtn.addEventListener('click', () => searchAddress(addressInput.value));
+        addressInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchAddress(addressInput.value);
+        });
+    }
+    
+    // Фильтр радиуса
+    const radiusSlider = document.getElementById('radius-slider');
+    const radiusValue = document.getElementById('radius-value');
+    if (radiusSlider && radiusValue) {
+        radiusSlider.addEventListener('input', (e) => {
+            radiusValue.textContent = `${e.target.value} км`;
+            currentFilters.radius = parseInt(e.target.value);
+            loadMarkers();
+        });
+    }
+    
+    // Кнопка сброса фильтров
+    const resetFiltersBtn = document.getElementById('reset-map-filters');
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', resetMapFilters);
+    }
+}
+
+// ============================================
+// ЗАГРУЗКА МАРКЕРОВ
+// ============================================
+
+async function loadMarkers() {
+    if (isMapLoading) return;
+    isMapLoading = true;
+    
+    const loadingIndicator = document.getElementById('map-loading');
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+    
+    try {
+        const bounds = map.getBounds();
+        const center = map.getCenter();
+        
+        const params = new URLSearchParams({
+            lat: center.lat,
+            lng: center.lng,
+            radius: currentFilters.radius,
+            ne_lat: bounds.getNorthEast().lat,
+            ne_lng: bounds.getNorthEast().lng,
+            sw_lat: bounds.getSouthWest().lat,
+            sw_lng: bounds.getSouthWest().lng
+        });
+        
+        if (currentFilters.category_id) params.append('category_id', currentFilters.category_id);
+        if (currentFilters.price_min) params.append('price_min', currentFilters.price_min);
+        if (currentFilters.price_max) params.append('price_max', currentFilters.price_max);
+        
+        const response = await fetch(`/api/v1/map/markers?${params}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateMarkers(data.markers);
+            updateMarkersCount(data.count);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки маркеров:', error);
+        showToast('Ошибка загрузки объявлений на карту', 'error');
+    } finally {
+        isMapLoading = false;
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+    }
+}
+
+function updateMarkers(newMarkers) {
+    // Очищаем старые маркеры
+    markersLayer.clearLayers();
+    markers = [];
+    
+    if (!newMarkers || newMarkers.length === 0) {
+        showNoMarkersMessage();
+        return;
+    }
+    
+    newMarkers.forEach(markerData => {
+        const marker = createMarker(markerData);
+        markersLayer.addLayer(marker);
+        markers.push(marker);
+    });
+}
+
+function createMarker(markerData) {
+    // Создаём кастомную иконку
+    const iconColor = getMarkerColorByPrice(markerData.price);
+    const icon = L.divIcon({
+        html: `
+            <div class="map-marker" style="border-color: ${iconColor}">
+                <div class="marker-price">${formatCompactPrice(markerData.price)}</div>
+                <div class="marker-dot" style="background: ${iconColor}"></div>
+            </div>
+        `,
+        className: 'custom-marker',
+        iconSize: [60, 30],
+        popupAnchor: [0, -15]
+    });
+    
+    const marker = L.marker([markerData.lat, markerData.lng], { icon });
+    
+    // Содержимое попапа
+    const popupContent = createPopupContent(markerData);
+    marker.bindPopup(popupContent, {
+        maxWidth: 300,
+        minWidth: 200,
+        className: 'marker-popup'
+    });
+    
+    marker.on('popupopen', () => {
+        // Добавляем обработчики кнопок в попапе
+        setTimeout(() => {
+            const viewBtn = document.querySelector(`.marker-view-btn[data-id="${markerData.id}"]`);
+            const routeBtn = document.querySelector(`.marker-route-btn[data-id="${markerData.id}"]`);
+            
+            if (viewBtn) {
+                viewBtn.addEventListener('click', () => {
+                    window.location.href = `/listing.html?id=${markerData.id}`;
+                });
+            }
+            
+            if (routeBtn && userLocation) {
+                routeBtn.addEventListener('click', () => {
+                    buildRoute(userLocation.lat, userLocation.lng, markerData.lat, markerData.lng);
+                });
+            }
+        }, 100);
+    });
+    
+    return marker;
+}
+
+function createPopupContent(markerData) {
+    const priceFormatted = formatPrice(markerData.price);
+    const firstPhoto = markerData.image || '/images/placeholder.jpg';
+    
+    return `
+        <div class="popup-content">
+            <div class="popup-image">
+                <img src="${firstPhoto}" alt="${escapeHtml(markerData.title)}" loading="lazy">
+            </div>
+            <div class="popup-info">
+                <div class="popup-price">${priceFormatted}</div>
+                <div class="popup-title">${escapeHtml(markerData.title)}</div>
+                <div class="popup-location">📍 ${escapeHtml(markerData.city || 'Не указан')}</div>
+                <div class="popup-actions">
+                    <button class="popup-btn view-btn marker-view-btn" data-id="${markerData.id}">📖 Открыть</button>
+                    ${userLocation ? `<button class="popup-btn route-btn marker-route-btn" data-id="${markerData.id}">🗺️ Маршрут</button>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getMarkerColorByPrice(price) {
+    if (price >= 1000000) return '#ef4444';
+    if (price >= 500000) return '#f59e0b';
+    if (price >= 100000) return '#3b82f6';
+    return '#10b981';
+}
+
+function formatCompactPrice(price) {
+    if (price >= 1000000) return (price / 1000000).toFixed(1) + 'M';
+    if (price >= 1000) return (price / 1000).toFixed(0) + 'K';
+    return price.toString();
+}
+
+// ============================================
+// ГЕОЛОКАЦИЯ
+// ============================================
+
+function locateUser() {
+    if (!navigator.geolocation) {
+        showToast('Геолокация не поддерживается вашим браузером', 'error');
+        return;
+    }
+    
+    const locateBtn = document.getElementById('locate-me');
+    if (locateBtn) {
+        locateBtn.classList.add('loading');
+        locateBtn.textContent = '📍 Определение...';
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            userLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            
+            // Центрируем карту на позиции пользователя
+            map.setView([userLocation.lat, userLocation.lng], 14);
+            
+            // Добавляем маркер пользователя
+            addUserMarker();
+            
+            // Обновляем фильтры
+            currentFilters.lat = userLocation.lat;
+            currentFilters.lng = userLocation.lng;
+            loadMarkers();
+            
+            showToast('Ваше местоположение определено', 'success');
+            
+            if (locateBtn) {
+                locateBtn.classList.remove('loading');
+                locateBtn.textContent = '📍 Моё местоположение';
+            }
+        },
+        (error) => {
+            console.error('Ошибка геолокации:', error);
+            let errorMessage = 'Не удалось определить местоположение';
+            if (error.code === 1) errorMessage = 'Доступ к геолокации запрещён';
+            if (error.code === 2) errorMessage = 'Позиция недоступна';
+            showToast(errorMessage, 'error');
+            
+            if (locateBtn) {
+                locateBtn.classList.remove('loading');
+                locateBtn.textContent = '📍 Моё местоположение';
+            }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+function addUserMarker() {
+    // Удаляем старый маркер пользователя
+    const oldUserMarker = document.querySelector('.user-location-marker');
+    if (oldUserMarker) oldUserMarker.remove();
+    
+    const userIcon = L.divIcon({
+        html: `<div class="user-location-marker"><div class="user-dot"></div><div class="user-pulse"></div></div>`,
+        className: 'user-marker',
+        iconSize: [20, 20]
+    });
+    
+    const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon });
+    userMarker.addTo(map);
+}
+
+// ============================================
+// ПОИСК АДРЕСА
+// ============================================
+
+async function searchAddress(query) {
+    if (!query || query.length < 3) {
+        showToast('Введите минимум 3 символа', 'error');
+        return;
+    }
+    
+    const searchBtn = document.getElementById('address-search-btn');
+    if (searchBtn) {
+        searchBtn.classList.add('loading');
+        searchBtn.textContent = 'Поиск...';
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/map/geocode?address=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (response.ok && data.lat && data.lng) {
+            map.setView([data.lat, data.lng], 15);
+            
+            // Добавляем временный маркер
+            const tempIcon = L.divIcon({
+                html: `<div class="search-marker">📍</div>`,
+                className: 'temp-marker',
+                iconSize: [30, 30]
+            });
+            
+            const tempMarker = L.marker([data.lat, data.lng], { icon: tempIcon }).addTo(map);
+            setTimeout(() => tempMarker.remove(), 3000);
+            
+            showToast(`Найден: ${data.displayName}`, 'success');
+        } else {
+            showToast('Адрес не найден', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка поиска адреса:', error);
+        showToast('Ошибка поиска адреса', 'error');
+    } finally {
+        if (searchBtn) {
+            searchBtn.classList.remove('loading');
+            searchBtn.textContent = '🔍 Найти';
+        }
+    }
+}
+
+// ============================================
+// ПОСТРОЕНИЕ МАРШРУТА
+// ============================================
+
+function buildRoute(fromLat, fromLng, toLat, toLng) {
+    // Удаляем старый маршрут
+    if (routeControl) {
+        map.removeControl(routeControl);
+    }
+    
+    // Открываем маршрут в Яндекс.Картах
+    const url = `https://yandex.ru/maps/?rtext=${fromLat},${fromLng}~${toLat},${toLng}&rtt=auto`;
+    window.open(url, '_blank');
+}
+
+// ============================================
+// ФИЛЬТРЫ НА КАРТЕ
+// ============================================
+
+function updateBounds() {
+    const bounds = map.getBounds();
+    currentBounds = {
+        ne: bounds.getNorthEast(),
+        sw: bounds.getSouthWest()
+    };
+}
+
+function resetMapFilters() {
+    currentFilters = {
+        category_id: null,
+        price_min: null,
+        price_max: null,
+        radius: 50,
+        lat: userLocation?.lat || null,
+        lng: userLocation?.lng || null
+    };
+    
+    // Сбрасываем UI фильтров
+    const categorySelect = document.getElementById('map-category');
+    if (categorySelect) categorySelect.value = '';
+    
+    const priceMin = document.getElementById('map-price-min');
+    if (priceMin) priceMin.value = '';
+    
+    const priceMax = document.getElementById('map-price-max');
+    if (priceMax) priceMax.value = '';
+    
+    const radiusSlider = document.getElementById('radius-slider');
+    if (radiusSlider) radiusSlider.value = 50;
+    
+    const radiusValue = document.getElementById('radius-value');
+    if (radiusValue) radiusValue.textContent = '50 км';
+    
+    loadMarkers();
+    showToast('Фильтры сброшены', 'info');
+}
+
+function showNoMarkersMessage() {
+    const message = document.createElement('div');
+    message.className = 'no-markers-message';
+    message.innerHTML = `
+        <div class="no-markers-content">
+            <span>📍</span>
+            <p>Нет объявлений в этой области</p>
+            <button onclick="resetMapFilters()">Сбросить фильтры</button>
+        </div>
+    `;
+    
+    // Показываем сообщение на 3 секунды
+    document.body.appendChild(message);
+    setTimeout(() => message.remove(), 3000);
+}
+
+function updateMarkersCount(count) {
+    const countElement = document.getElementById('markers-count');
+    if (countElement) {
+        countElement.textContent = formatNumber(count);
+    }
+}
+
+// ============================================
+// ФИЛЬТР ПО КАТЕГОРИЯМ
+// ============================================
+
+async function loadMapCategories() {
+    const select = document.getElementById('map-category');
+    if (!select) return;
+    
+    try {
+        const response = await fetch('/api/v1/categories');
+        const data = await response.json();
+        
+        if (response.ok) {
+            select.innerHTML = '<option value="">Все категории</option>' +
+                data.categories.map(cat => `
+                    <option value="${cat.id}">${escapeHtml(cat.name)}</option>
+                `).join('');
+        }
+        
+        select.addEventListener('change', (e) => {
+            currentFilters.category_id = e.target.value || null;
+            loadMarkers();
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки категорий:', error);
+    }
+}
+
+// ============================================
+// ЦЕНОВЫЕ ФИЛЬТРЫ
+// ============================================
+
+function initPriceFilters() {
+    const priceMin = document.getElementById('map-price-min');
+    const priceMax = document.getElementById('map-price-max');
+    const applyPriceBtn = document.getElementById('apply-price-filter');
+    
+    if (applyPriceBtn) {
+        applyPriceBtn.addEventListener('click', () => {
+            currentFilters.price_min = priceMin?.value || null;
+            currentFilters.price_max = priceMax?.value || null;
+            loadMarkers();
+        });
+    }
+}
+
+// ============================================
+// ОБНОВЛЕНИЕ МАРКЕРОВ ПРИ ИЗМЕНЕНИИ ФИЛЬТРОВ
+// ============================================
+
+function refreshMarkers() {
+    loadMarkers();
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initMap = initMap;
+window.loadMarkers = loadMarkers;
+window.locateUser = locateUser;
+window.searchAddress = searchAddress;
+window.buildRoute = buildRoute;
+window.resetMapFilters = resetMapFilters;
+window.refreshMarkers = refreshMarkers;
+
+// ============================================
+// CSS ДЛЯ КАРТЫ (добавляем динамически)
+// ============================================
+
+function addMapStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .map-marker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            border-radius: 20px;
+            padding: 4px 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border: 2px solid;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .marker-price {
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .marker-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+        .cluster-marker {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .user-location-marker {
+            position: relative;
+            width: 20px;
+            height: 20px;
+        }
+        .user-dot {
+            width: 12px;
+            height: 12px;
+            background: #3b82f6;
+            border-radius: 50%;
+            border: 2px solid white;
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            z-index: 2;
+        }
+        .user-pulse {
+            width: 20px;
+            height: 20px;
+            background: rgba(59,130,246,0.4);
+            border-radius: 50%;
+            position: absolute;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .search-marker {
+            font-size: 24px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            animation: bounce 0.5s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        .no-markers-message {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 16px 24px;
+            border-radius: 44px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            animation: fadeInUp 0.3s ease;
+        }
+        .no-markers-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .no-markers-content button {
+            background: #10b981;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 44px;
+            color: white;
+            cursor: pointer;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// ============================================
+// ЗАПУСК
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('map.html') || document.getElementById('map-container')) {
+        addMapStyles();
+        initMap();
+        loadMapCategories();
+        initPriceFilters();
+    }
+});

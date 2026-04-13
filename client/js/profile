@@ -1,0 +1,795 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/profile.js
+ * Описание: Профиль пользователя (редактирование, статистика, настройки, уведомления)
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let currentUser = null;
+let userListings = [];
+let currentTab = 'listings';
+let statsData = null;
+let listingsPage = 1;
+let isLoadingListings = false;
+let hasMoreListings = true;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ ПРОФИЛЯ
+// ============================================
+
+async function initProfile() {
+    if (!isAuthenticated()) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
+        window.location.href = '/login.html';
+        return;
+    }
+    
+    await loadUserProfile();
+    await loadUserStats();
+    await loadUserListings();
+    initProfileTabs();
+    initProfileForms();
+    initNotificationsSettings();
+}
+
+async function loadUserProfile() {
+    const profileContainer = document.getElementById('profile-content');
+    if (!profileContainer) return;
+    
+    profileContainer.innerHTML = '<div class="loading-profile">Загрузка...</div>';
+    
+    try {
+        const response = await fetch('/api/v1/users/me', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data.user;
+            renderProfile(data.user);
+        } else if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+        profileContainer.innerHTML = '<div class="error-profile">Ошибка загрузки профиля</div>';
+    }
+}
+
+function renderProfile(user) {
+    const profileContainer = document.getElementById('profile-content');
+    if (!profileContainer) return;
+    
+    const joinedDate = new Date(user.created_at).toLocaleDateString('ru-RU');
+    const avatarUrl = user.avatar || '/images/default-avatar.png';
+    
+    profileContainer.innerHTML = `
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <img src="${avatarUrl}" alt="${escapeHtml(user.name)}" id="profile-avatar-img">
+                <button class="change-avatar-btn" id="change-avatar-btn">📷</button>
+                <input type="file" id="avatar-upload" accept="image/*" style="display: none">
+            </div>
+            <div class="profile-info">
+                <h1 class="profile-name">${escapeHtml(user.name)}</h1>
+                <div class="profile-email">📧 ${escapeHtml(user.email)}</div>
+                ${user.phone ? `<div class="profile-phone">📞 ${escapeHtml(user.phone)}</div>` : ''}
+                <div class="profile-location">📍 ${escapeHtml(user.city || 'Город не указан')}</div>
+                <div class="profile-meta">
+                    <span>📅 на сайте с ${joinedDate}</span>
+                    <span>⭐ Рейтинг: ${user.rating || 0}</span>
+                    <span>🎁 Бонусов: <span class="bonus-balance">${user.bonus_balance || 0}</span></span>
+                </div>
+            </div>
+            <div class="profile-actions">
+                <button class="btn-primary edit-profile-btn" id="edit-profile-btn">✏️ Редактировать</button>
+            </div>
+        </div>
+        
+        <div class="profile-tabs">
+            <button class="tab-btn ${currentTab === 'listings' ? 'active' : ''}" data-tab="listings">📋 Мои объявления</button>
+            <button class="tab-btn ${currentTab === 'stats' ? 'active' : ''}" data-tab="stats">📊 Статистика</button>
+            <button class="tab-btn ${currentTab === 'settings' ? 'active' : ''}" data-tab="settings">⚙️ Настройки</button>
+            <button class="tab-btn ${currentTab === 'bonus' ? 'active' : ''}" data-tab="bonus">🎁 Бонусы</button>
+            <button class="tab-btn ${currentTab === 'referral' ? 'active' : ''}" data-tab="referral">👥 Рефералы</button>
+            <button class="tab-btn ${currentTab === 'garage' ? 'active' : ''}" data-tab="garage">🚗 Гараж</button>
+            <button class="tab-btn ${currentTab === 'resume' ? 'active' : ''}" data-tab="resume">📄 Резюме</button>
+        </div>
+        
+        <div class="profile-tab-content" id="profile-tab-content"></div>
+    `;
+    
+    // Обработчик смены аватара
+    const changeAvatarBtn = document.getElementById('change-avatar-btn');
+    const avatarUpload = document.getElementById('avatar-upload');
+    if (changeAvatarBtn && avatarUpload) {
+        changeAvatarBtn.addEventListener('click', () => avatarUpload.click());
+        avatarUpload.addEventListener('change', uploadAvatar);
+    }
+    
+    // Обработчик редактирования профиля
+    const editProfileBtn = document.getElementById('edit-profile-btn');
+    if (editProfileBtn) {
+        editProfileBtn.addEventListener('click', () => openEditProfileModal(user));
+    }
+}
+
+// ============================================
+// ЗАГРУЗКА СТАТИСТИКИ
+// ============================================
+
+async function loadUserStats() {
+    try {
+        const response = await fetch('/api/v1/users/stats', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            statsData = await response.json();
+            if (currentTab === 'stats') renderStats();
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+    }
+}
+
+function renderStats() {
+    const container = document.getElementById('profile-tab-content');
+    if (!container || !statsData) return;
+    
+    container.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">${formatNumber(statsData.views || 0)}</div>
+                <div class="stat-label">Просмотров</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${formatNumber(statsData.likes || 0)}</div>
+                <div class="stat-label">Лайков</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${formatNumber(statsData.listings_count || 0)}</div>
+                <div class="stat-label">Объявлений</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${formatNumber(statsData.sales || 0)}</div>
+                <div class="stat-label">Продаж</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${formatNumber(statsData.reviews_count || 0)}</div>
+                <div class="stat-label">Отзывов</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${statsData.rating || 0}</div>
+                <div class="stat-label">Рейтинг</div>
+            </div>
+        </div>
+        <div class="stats-charts">
+            <canvas id="views-chart"></canvas>
+            <canvas id="listings-chart"></canvas>
+        </div>
+        <button class="btn-outline export-stats-btn" id="export-stats-btn">📥 Экспорт статистики (CSV)</button>
+    `;
+    
+    // Рендерим графики
+    renderCharts();
+    
+    // Экспорт
+    const exportBtn = document.getElementById('export-stats-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportStats);
+    }
+}
+
+function renderCharts() {
+    if (typeof Chart === 'undefined') {
+        // Загружаем Chart.js если не загружен
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = () => createCharts();
+        document.head.appendChild(script);
+    } else {
+        createCharts();
+    }
+}
+
+function createCharts() {
+    const viewsCtx = document.getElementById('views-chart')?.getContext('2d');
+    const listingsCtx = document.getElementById('listings-chart')?.getContext('2d');
+    
+    if (viewsCtx && statsData?.views_history) {
+        new Chart(viewsCtx, {
+            type: 'line',
+            data: {
+                labels: statsData.views_history.map(h => h.date),
+                datasets: [{
+                    label: 'Просмотры',
+                    data: statsData.views_history.map(h => h.count),
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+    
+    if (listingsCtx && statsData?.listings_history) {
+        new Chart(listingsCtx, {
+            type: 'bar',
+            data: {
+                labels: statsData.listings_history.map(h => h.date),
+                datasets: [{
+                    label: 'Новые объявления',
+                    data: statsData.listings_history.map(h => h.count),
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+}
+
+// ============================================
+// ЗАГРУЗКА ОБЪЯВЛЕНИЙ ПОЛЬЗОВАТЕЛЯ
+// ============================================
+
+async function loadUserListings(append = false) {
+    if (isLoadingListings) return;
+    isLoadingListings = true;
+    
+    const container = document.getElementById('profile-tab-content');
+    if (!container) return;
+    
+    if (!append) {
+        container.innerHTML = '<div class="loading-listings">Загрузка объявлений...</div>';
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/listings/user/me?limit=20&page=${listingsPage}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (append) {
+                userListings.push(...data.listings);
+            } else {
+                userListings = data.listings;
+            }
+            
+            renderUserListings(append);
+            
+            hasMoreListings = data.hasMore;
+            if (hasMoreListings) listingsPage++;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки объявлений:', error);
+        if (!append) container.innerHTML = '<div class="error-listings">Ошибка загрузки</div>';
+    } finally {
+        isLoadingListings = false;
+    }
+}
+
+function renderUserListings(append = false) {
+    const container = document.getElementById('profile-tab-content');
+    if (!container) return;
+    
+    if (!append) container.innerHTML = '';
+    
+    if (userListings.length === 0) {
+        container.innerHTML = `
+            <div class="empty-listings">
+                <div class="empty-icon">📭</div>
+                <h3>У вас нет объявлений</h3>
+                <a href="/add-listing.html" class="btn-primary">➕ Создать объявление</a>
+            </div>
+        `;
+        return;
+    }
+    
+    userListings.forEach(listing => {
+        const card = createUserListingCard(listing);
+        container.appendChild(card);
+    });
+    
+    if (hasMoreListings) {
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.className = 'btn-outline load-more-listings';
+        loadMoreBtn.textContent = 'Загрузить ещё';
+        loadMoreBtn.addEventListener('click', () => loadUserListings(true));
+        container.appendChild(loadMoreBtn);
+    }
+}
+
+function createUserListingCard(listing) {
+    const card = document.createElement('div');
+    card.className = 'user-listing-card';
+    card.dataset.id = listing.id;
+    
+    const firstPhoto = listing.photos?.[0] || '/images/placeholder.jpg';
+    const priceFormatted = formatPrice(listing.price);
+    const statusText = getListingStatusText(listing.status);
+    const statusClass = getListingStatusClass(listing.status);
+    
+    card.innerHTML = `
+        <div class="listing-card-image">
+            <img src="${firstPhoto}" alt="${escapeHtml(listing.title)}" loading="lazy">
+            <span class="listing-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="listing-card-info">
+            <div class="listing-card-price">${priceFormatted}</div>
+            <div class="listing-card-title">${escapeHtml(listing.title)}</div>
+            <div class="listing-card-meta">
+                <span>👁️ ${formatNumber(listing.views || 0)}</span>
+                <span>❤️ ${formatNumber(listing.likes || 0)}</span>
+                <span>📅 ${formatTime(listing.created_at)}</span>
+            </div>
+            <div class="listing-card-actions">
+                <button class="btn-sm edit-listing" data-id="${listing.id}">✏️ Редактировать</button>
+                <button class="btn-sm ${listing.status === 'active' ? 'mark-sold' : 'btn-secondary'} ${listing.status === 'active' ? 'mark-sold' : ''}" data-id="${listing.id}">
+                    ${listing.status === 'active' ? '💰 Продано' : 'Продан'}
+                </button>
+                <button class="btn-sm btn-danger delete-listing" data-id="${listing.id}">🗑️ Удалить</button>
+                <button class="btn-sm bump-listing" data-id="${listing.id}">⬆️ Поднять</button>
+            </div>
+        </div>
+    `;
+    
+    // Обработчики кнопок
+    card.querySelector('.edit-listing')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.location.href = `/edit-listing.html?id=${listing.id}`;
+    });
+    
+    card.querySelector('.mark-sold')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        markAsSold(listing.id);
+    });
+    
+    card.querySelector('.delete-listing')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteListing(listing.id);
+    });
+    
+    card.querySelector('.bump-listing')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        bumpListing(listing.id);
+    });
+    
+    card.addEventListener('click', () => {
+        window.location.href = `/listing.html?id=${listing.id}`;
+    });
+    
+    return card;
+}
+
+// ============================================
+// РЕДАКТИРОВАНИЕ ПРОФИЛЯ
+// ============================================
+
+function openEditProfileModal(user) {
+    const modal = document.getElementById('edit-profile-modal');
+    if (!modal) return;
+    
+    document.getElementById('edit-name').value = user.name;
+    document.getElementById('edit-phone').value = user.phone || '';
+    document.getElementById('edit-city').value = user.city || '';
+    document.getElementById('edit-bio').value = user.bio || '';
+    
+    modal.classList.add('active');
+    
+    const form = document.getElementById('edit-profile-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        await updateProfile();
+    };
+    
+    const closeBtn = modal.querySelector('.modal-close');
+    if (closeBtn) {
+        closeBtn.onclick = () => modal.classList.remove('active');
+    }
+}
+
+async function updateProfile() {
+    const name = document.getElementById('edit-name').value;
+    const phone = document.getElementById('edit-phone').value;
+    const city = document.getElementById('edit-city').value;
+    const bio = document.getElementById('edit-bio').value;
+    
+    try {
+        const response = await fetch('/api/v1/users/me', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ name, phone, city, bio })
+        });
+        
+        if (response.ok) {
+            showToast('Профиль обновлён', 'success');
+            document.getElementById('edit-profile-modal')?.classList.remove('active');
+            loadUserProfile();
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка обновления', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения', 'error');
+    }
+}
+
+async function uploadAvatar(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('Файл слишком большой, максимум 5MB', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    try {
+        const response = await fetch('/api/v1/users/avatar', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const avatarImg = document.getElementById('profile-avatar-img');
+            if (avatarImg) avatarImg.src = data.avatar_url;
+            showToast('Аватар обновлён', 'success');
+        } else {
+            showToast('Ошибка загрузки', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка соединения', 'error');
+    }
+}
+
+// ============================================
+// НАСТРОЙКИ УВЕДОМЛЕНИЙ
+// ============================================
+
+async function initNotificationsSettings() {
+    try {
+        const response = await fetch('/api/v1/notifications/settings', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (response.ok) {
+            const settings = await response.json();
+            renderNotificationsSettings(settings);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки настроек:', error);
+    }
+}
+
+function renderNotificationsSettings(settings) {
+    const container = document.getElementById('profile-tab-content');
+    if (!container || currentTab !== 'settings') return;
+    
+    container.innerHTML = `
+        <div class="settings-section">
+            <h3>Уведомления</h3>
+            <div class="settings-item">
+                <label>📧 Email уведомления</label>
+                <label class="switch">
+                    <input type="checkbox" id="notif-email" ${settings.email ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item">
+                <label>🔔 Push-уведомления</label>
+                <label class="switch">
+                    <input type="checkbox" id="notif-push" ${settings.push ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item">
+                <label>📱 Telegram уведомления</label>
+                <label class="switch">
+                    <input type="checkbox" id="notif-telegram" ${settings.telegram ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button class="btn-primary save-notif-settings">Сохранить</button>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Безопасность</h3>
+            <button class="btn-outline change-password-btn" id="change-password-btn">🔐 Сменить пароль</button>
+            <button class="btn-outline logout-all-btn" id="logout-all-btn">🚪 Выйти из всех устройств</button>
+            <button class="btn-danger delete-account-btn" id="delete-account-btn">⚠️ Удалить аккаунт</button>
+        </div>
+    `;
+    
+    // Сохранение настроек
+    const saveBtn = container.querySelector('.save-notif-settings');
+    saveBtn?.addEventListener('click', () => saveNotificationSettings());
+    
+    // Смена пароля
+    document.getElementById('change-password-btn')?.addEventListener('click', openChangePasswordModal);
+    
+    // Выход из всех устройств
+    document.getElementById('logout-all-btn')?.addEventListener('click', logoutAllDevices);
+    
+    // Удаление аккаунта
+    document.getElementById('delete-account-btn')?.addEventListener('click', deleteAccount);
+}
+
+async function saveNotificationSettings() {
+    const settings = {
+        email: document.getElementById('notif-email')?.checked || false,
+        push: document.getElementById('notif-push')?.checked || false,
+        telegram: document.getElementById('notif-telegram')?.checked || false
+    };
+    
+    try {
+        const response = await fetch('/api/v1/notifications/settings', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(settings)
+        });
+        
+        if (response.ok) {
+            showToast('Настройки сохранены', 'success');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка сохранения', 'error');
+    }
+}
+
+function openChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    if (!modal) return;
+    modal.classList.add('active');
+    
+    const form = document.getElementById('change-password-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        await changePassword();
+    };
+}
+
+async function changePassword() {
+    const oldPassword = document.getElementById('old-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    if (newPassword !== confirmPassword) {
+        showToast('Пароли не совпадают', 'error');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showToast('Пароль должен быть минимум 6 символов', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/auth/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+        });
+        
+        if (response.ok) {
+            showToast('Пароль изменён', 'success');
+            document.getElementById('change-password-modal')?.classList.remove('active');
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        showToast('Ошибка соединения', 'error');
+    }
+}
+
+async function logoutAllDevices() {
+    if (!confirm('Вы уверены? Сессии на всех устройствах будут завершены.')) return;
+    
+    try {
+        const response = await fetch('/api/v1/auth/logout-all', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            showToast('Вы вышли из всех устройств', 'success');
+            setTimeout(() => logout(), 2000);
+        }
+    } catch (error) {
+        showToast('Ошибка', 'error');
+    }
+}
+
+async function deleteAccount() {
+    if (!confirm('ВНИМАНИЕ! Это действие необратимо. Все ваши данные будут удалены. Продолжить?')) return;
+    
+    const password = prompt('Введите пароль для подтверждения:');
+    if (!password) return;
+    
+    try {
+        const response = await fetch('/api/v1/users/me', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ password })
+        });
+        
+        if (response.ok) {
+            showToast('Аккаунт удалён', 'success');
+            logout();
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Неверный пароль', 'error');
+        }
+    } catch (error) {
+        showToast('Ошибка', 'error');
+    }
+}
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
+
+function initProfileTabs() {
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', async () => {
+            const tabName = tab.dataset.tab;
+            currentTab = tabName;
+            
+            // Обновляем активный класс
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Загружаем контент вкладки
+            await loadTabContent(tabName);
+        });
+    });
+    
+    // Загружаем начальную вкладку
+    loadTabContent(currentTab);
+}
+
+async function loadTabContent(tabName) {
+    const container = document.getElementById('profile-tab-content');
+    if (!container) return;
+    
+    switch (tabName) {
+        case 'listings':
+            listingsPage = 1;
+            hasMoreListings = true;
+            userListings = [];
+            await loadUserListings(false);
+            break;
+        case 'stats':
+            renderStats();
+            break;
+        case 'settings':
+            renderNotificationsSettings({});
+            break;
+        case 'bonus':
+            loadBonusTab();
+            break;
+        case 'referral':
+            loadReferralTab();
+            break;
+        case 'garage':
+            loadGarageTab();
+            break;
+        case 'resume':
+            loadResumeTab();
+            break;
+        default:
+            container.innerHTML = '<div class="loading-content">Загрузка...</div>';
+    }
+}
+
+function getListingStatusText(status) {
+    const statuses = {
+        'active': 'Активно',
+        'pending': 'На модерации',
+        'sold': 'Продано',
+        'archived': 'В архиве',
+        'rejected': 'Отклонено'
+    };
+    return statuses[status] || status;
+}
+
+function getListingStatusClass(status) {
+    const classes = {
+        'active': 'status-active',
+        'pending': 'status-pending',
+        'sold': 'status-sold',
+        'archived': 'status-archived',
+        'rejected': 'status-rejected'
+    };
+    return classes[status] || '';
+}
+
+async function exportStats() {
+    if (!statsData) return;
+    
+    const csvContent = [
+        ['Дата', 'Просмотры', 'Лайки', 'Новые объявления'],
+        ...(statsData.views_history?.map((h, i) => [
+            h.date,
+            h.count,
+            statsData.likes_history?.[i]?.count || 0,
+            statsData.listings_history?.[i]?.count || 0
+        ]) || [])
+    ].map(row => row.join(';')).join('\n');
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `stats_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    
+    showToast('Экспорт завершён', 'success');
+}
+
+// Заглушки для остальных вкладок (будут реализованы позже)
+async function loadBonusTab() { document.getElementById('profile-tab-content').innerHTML = '<div class="coming-soon">🎁 Бонусная система скоро</div>'; }
+async function loadReferralTab() { document.getElementById('profile-tab-content').innerHTML = '<div class="coming-soon">👥 Реферальная программа скоро</div>'; }
+async function loadGarageTab() { document.getElementById('profile-tab-content').innerHTML = '<div class="coming-soon">🚗 Гараж скоро</div>'; }
+async function loadResumeTab() { document.getElementById('profile-tab-content').innerHTML = '<div class="coming-soon">📄 Резюме скоро</div>'; }
+async function bumpListing(id) { showToast('Функция поднятия будет доступна позже', 'info'); }
+
+function initProfileForms() {}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initProfile = initProfile;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('profile.html')) {
+        initProfile();
+    }
+});

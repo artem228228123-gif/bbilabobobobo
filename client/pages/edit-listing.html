@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Редактирование объявления на АЙДА — премиальной доске объявлений">
+    <meta name="theme-color" content="#007aff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AЙДA">
+    <title>Редактировать объявление — AЙДA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ========== APPLE ПРЕМИУМ СИСТЕМА ========== */
+        :root {
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f9f9fb;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #8e8e93;
+            --border: rgba(0, 0, 0, 0.06);
+            --border-focus: rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border);
+            --shadow-lg: 0 20px 38px -10px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+            --accent: #007aff;
+            --accent-grad: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(0,122,255,0.12) 0%, rgba(88,86,214,0.12) 100%);
+            --danger: #ff3b30;
+            --danger-grad: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --blur-bg: rgba(255, 255, 255, 0.72);
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --radius-full: 100px;
+            --transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            --transition-bounce: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #000000;
+            --bg-secondary: #1c1c1e;
+            --bg-tertiary: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-tertiary: #636366;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-focus: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+            --card-bg: rgba(28, 28, 30, 0.92);
+            --blur-bg: rgba(28, 28, 30, 0.78);
+            --accent: #0a84ff;
+            --accent-grad: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(10,132,255,0.15) 0%, rgba(94,92,230,0.15) 100%);
+        }
+
+        body {
+            font-family: -apple-system, 'Inter', system-ui, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.4s ease, color 0.3s ease;
+        }
+
+        /* ========== ХЕДЕР ========== */
+        .header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(24px) saturate(180%);
+            background: var(--blur-bg);
+            border-bottom: 0.5px solid var(--border);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .search-wrapper {
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .search-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            border: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            transition: var(--transition);
+        }
+
+        .search-container:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 8px var(--spacing-sm);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .search-btn, .photo-search-btn {
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: var(--radius-full);
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .search-btn:hover, .photo-search-btn:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .city-selector {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 8px var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+        }
+
+        .city-selector:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            position: relative;
+        }
+
+        .header-action {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 6px;
+            transition: var(--transition-bounce);
+            position: relative;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-action:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ff3b30;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 20px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .add-listing-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .add-listing-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .profile-btn {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: var(--transition-bounce);
+        }
+
+        .profile-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+        }
+
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        /* Dropdown */
+        .profile-dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: var(--spacing-sm);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            width: 240px;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+            z-index: 100;
+            transform: translateY(-8px);
+        }
+
+        .profile-dropdown:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .dropdown-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .dropdown-name {
+            font-weight: 600;
+        }
+
+        .dropdown-email {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: var(--transition);
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .dropdown-item:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        hr {
+            border: none;
+            border-top: 0.5px solid var(--border);
+            margin: var(--spacing-xs) 0;
+        }
+
+        /* ========== ОСНОВНОЙ КОНТЕНТ ========== */
+        .main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--spacing-xl) var(--spacing-lg);
+        }
+
+        .form-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl);
+            border: 0.5px solid var(--border);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .form-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            padding: var(--spacing-lg) var(--spacing-lg) 0;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .edit-listing-form {
+            padding: 0 var(--spacing-lg) var(--spacing-lg);
+        }
+
+        /* Скелетон */
+        .edit-skeleton {
+            padding: var(--spacing-lg);
+        }
+
+        .skeleton-line {
+            height: 20px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            margin-bottom: var(--spacing-md);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-line:last-child {
+            margin-bottom: 0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Секции формы */
+        .form-section {
+            margin-bottom: var(--spacing-xl);
+            padding-bottom: var(--spacing-xl);
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+            color: var(--text-primary);
+        }
+
+        /* Существующие фото */
+        .existing-photos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+        }
+
+        .existing-photo {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 0.5px solid var(--border);
+        }
+
+        .existing-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-existing-photo {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .remove-existing-photo:hover {
+            background: var(--danger);
+            transform: scale(1.05);
+        }
+
+        .no-photos {
+            color: var(--text-secondary);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        /* Dropzone */
+        .upload-dropzone {
+            background: var(--bg-tertiary);
+            border: 1.5px dashed var(--border-focus);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+        }
+
+        .upload-dropzone:hover {
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            transform: scale(1.01);
+        }
+
+        .dropzone-icon {
+            font-size: 2.5rem;
+            color: var(--accent);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .dropzone-text {
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .dropzone-hint {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .photo-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+
+        /* Форм группы */
+        .form-group {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.85rem;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-primary);
+        }
+
+        .required {
+            color: var(--danger);
+        }
+
+        .input-field {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        textarea.input-field {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        select.input-field {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right var(--spacing-md) center;
+        }
+
+        .price-input-group {
+            position: relative;
+        }
+
+        .price-input-group .input-field {
+            padding-right: 40px;
+        }
+
+        .price-currency {
+            position: absolute;
+            right: var(--spacing-md);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .input-hint {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Чекбоксы */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+
+        /* Радио-группа */
+        .radio-group {
+            display: flex;
+            gap: var(--spacing-lg);
+            flex-wrap: wrap;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            cursor: pointer;
+        }
+
+        .radio-custom {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border-focus);
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+        }
+
+        input[type="radio"] {
+            display: none;
+        }
+
+        input[type="radio"]:checked + .radio-custom {
+            border-color: var(--accent);
+        }
+
+        input[type="radio"]:checked + .radio-custom::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+        }
+
+        .radio-text {
+            font-size: 0.9rem;
+        }
+
+        /* Характеристики */
+        .specs-container {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .spec-row {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .spec-row .spec-key,
+        .spec-row .spec-value {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.9rem;
+        }
+
+        .remove-spec-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: var(--spacing-xs);
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .remove-spec-btn:hover {
+            background: var(--accent-grad-light);
+            color: var(--danger);
+            transform: scale(1.1);
+        }
+
+        /* Кнопки */
+        .btn-primary {
+            background: var(--accent-grad);
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-xl);
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 0.5px solid var(--border);
+            padding: var(--spacing-sm) var(--spacing-xl);
+            border-radius: var(--radius-full);
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-grad-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .btn-danger {
+            background: var(--danger-grad);
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-xl);
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+        }
+
+        .btn-danger:hover {
+            transform: scale(1.02);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: space-between;
+            margin-top: var(--spacing-xl);
+            padding-top: var(--spacing-md);
+        }
+
+        .add-spec-btn {
+            font-size: 0.85rem;
+            padding: var(--spacing-xs) var(--spacing-md);
+        }
+
+        /* Подсказки города */
+        .city-suggestions {
+            position: absolute;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-md);
+            border: 0.5px solid var(--border);
+            margin-top: var(--spacing-xs);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        .city-suggestion {
+            padding: var(--spacing-sm) var(--spacing-md);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .city-suggestion:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 480px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            border: 0.5px solid var(--border);
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .modal-close:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: flex-end;
+            margin-top: var(--spacing-lg);
+        }
+
+        .success-icon {
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        /* Помощь */
+        .help-question h4 {
+            font-size: 1rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .help-question p {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .help-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 0.5px solid var(--border);
+        }
+
+        .help-prev, .help-next {
+            background: none;
+            border: none;
+            padding: var(--spacing-xs) var(--spacing-md);
+            cursor: pointer;
+            color: var(--accent);
+            font-weight: 500;
+            border-radius: var(--radius-full);
+            transition: var(--transition);
+        }
+
+        .help-prev:disabled, .help-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .help-prev:hover:not(:disabled), .help-next:hover:not(:disabled) {
+            background: var(--accent-grad-light);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-full);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            font-size: 0.85rem;
+            animation: toastIn 0.3s ease;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Футер */
+        .footer {
+            background: var(--bg-tertiary);
+            border-top: 0.5px solid var(--border);
+            padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xl);
+            justify-content: space-between;
+        }
+
+        .footer-column h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .footer-column a, .footer-column button {
+            display: block;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            margin-bottom: var(--spacing-sm);
+            transition: var(--transition);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .footer-column a:hover, .footer-column button:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            width: 100%;
+            text-align: center;
+            padding-top: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+            border-top: 0.5px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        /* Адаптив */
+        @media (max-width: 768px) {
+            .header-container { gap: var(--spacing-sm); }
+            .add-text { display: none; }
+            .add-listing-btn { padding: 6px 14px; }
+            .form-title { font-size: 1.4rem; }
+            .edit-listing-form { padding: 0 var(--spacing-md) var(--spacing-md); }
+            .form-actions { flex-direction: column-reverse; }
+            .btn-primary, .btn-danger, .btn-secondary { width: 100%; text-align: center; }
+            .radio-group { flex-direction: column; gap: var(--spacing-sm); }
+            .spec-row { flex-wrap: wrap; }
+            .existing-photo { width: 80px; height: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <a href="/" class="logo">AЙДA</a>
+            <div class="search-wrapper">
+                <div class="search-container">
+                    <input type="text" id="search-input" class="search-input" placeholder="Поиск...">
+                    <button class="search-btn"><i class="fas fa-search"></i></button>
+                    <button class="photo-search-btn"><i class="fas fa-camera"></i></button>
+                </div>
+            </div>
+            <button class="city-selector"><i class="fas fa-map-marker-alt"></i> Москва <i class="fas fa-chevron-down"></i></button>
+            <div class="header-actions">
+                <a href="/favorites.html" class="header-action"><i class="far fa-heart"></i><span class="badge">3</span></a>
+                <a href="/notifications.html" class="header-action"><i class="far fa-bell"></i><span class="badge">5</span></a>
+                <a href="/chats.html" class="header-action"><i class="far fa-comment"></i><span class="badge">2</span></a>
+                <a href="/add-listing.html" class="add-listing-btn"><i class="fas fa-plus"></i> <span class="add-text">Разместить</span></a>
+                <div class="profile-dropdown">
+                    <button class="profile-btn">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="profile-avatar">
+                    </button>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-header">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="dropdown-avatar">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-name">Алексей</div>
+                                <div class="dropdown-email">alex@example.com</div>
+                            </div>
+                        </div>
+                        <hr>
+                        <a href="/profile.html?tab=listings" class="dropdown-item"><i class="fas fa-list"></i> Мои объявления</a>
+                        <a href="/favorites.html" class="dropdown-item"><i class="fas fa-heart"></i> Избранное</a>
+                        <a href="/chats.html" class="dropdown-item"><i class="fas fa-comment"></i> Чаты</a>
+                        <a href="/profile.html?tab=stats" class="dropdown-item"><i class="fas fa-chart-line"></i> Статистика</a>
+                        <a href="/profile.html?tab=settings" class="dropdown-item"><i class="fas fa-cog"></i> Настройки</a>
+                        <hr>
+                        <button id="logout-btn" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+                    </div>
+                </div>
+                <button id="theme-toggle" class="theme-toggle"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="form-container">
+            <h1 class="form-title"><i class="fas fa-edit"></i> Редактирование объявления</h1>
+            
+            <div id="edit-skeleton" class="edit-skeleton">
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+            </div>
+
+            <form id="edit-listing-form" class="edit-listing-form" style="display: none;">
+                <input type="hidden" id="listing_id" name="listing_id">
+                <input type="hidden" id="deleted_photos" name="deleted_photos" value="[]">
+                
+                <!-- Существующие фото -->
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-images"></i> Существующие фото</h3>
+                    <div id="existing-photos" class="existing-photos"></div>
+                </div>
+
+                <!-- Новые фото -->
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-plus-circle"></i> Добавить новые фото</h3>
+                    <div class="upload-section">
+                        <div id="dropzone" class="upload-dropzone">
+                            <div class="dropzone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <div class="dropzone-text">Нажмите или перетащите фото</div>
+                            <div class="dropzone-hint">Максимум 10 файлов. JPG, PNG, WebP</div>
+                            <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple style="display: none">
+                        </div>
+                        <div id="photo-preview" class="photo-preview"></div>
+                    </div>
+                </div>
+
+                <!-- Основная информация -->
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-info-circle"></i> Основная информация</h3>
+                    
+                    <div class="form-group">
+                        <label>Название объявления <span class="required">*</span></label>
+                        <input type="text" id="title" name="title" class="input-field" placeholder="Например: iPhone 15 Pro, отличное состояние" maxlength="200">
+                        <div class="input-hint">До 200 символов</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Категория <span class="required">*</span></label>
+                        <select id="category_id" name="category_id" class="input-field">
+                            <option value="">Выберите категорию</option>
+                            <option value="1">Электроника</option>
+                            <option value="2">Недвижимость</option>
+                            <option value="3">Авто</option>
+                            <option value="4">Услуги</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Цена <span class="required">*</span></label>
+                        <div class="price-input-group">
+                            <input type="number" id="price" name="price" class="input-field" placeholder="0" min="0" step="1">
+                            <span class="price-currency">₽</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea id="description" name="description" class="input-field" rows="6" placeholder="Опишите ваш товар подробно..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Местоположение -->
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-map-marker-alt"></i> Местоположение</h3>
+                    
+                    <div class="form-group">
+                        <label>Город <span class="required">*</span></label>
+                        <input type="text" id="city" name="city" class="input-field">
+                        <div id="city-suggestions" class="city-suggestions" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Адрес (необязательно)</label>
+                        <input type="text" id="address" name="address" class="input-field" placeholder="Улица, дом">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-group">
+                            <input type="checkbox" id="hide-address" name="hide_address">
+                            <span>Не показывать точный адрес на карте</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Характеристики -->
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-sliders-h"></i> Характеристики</h3>
+                    <div id="specs-container" class="specs-container"></div>
+                    <button type="button" id="add-spec-btn" class="btn-secondary add-spec-btn"><i class="fas fa-plus"></i> Добавить характеристику</button>
+                </div>
+
+                <!-- Статус объявления -->
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-tag"></i> Статус объявления</h3>
+                    
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="active" checked>
+                            <span class="radio-custom"></span>
+                            <span class="radio-text"><i class="fas fa-play-circle" style="color: #34c759;"></i> Активно</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="sold">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text"><i class="fas fa-check-circle" style="color: #ff9500;"></i> Продано</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="archived">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text"><i class="fas fa-archive"></i> В архив</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Кнопки -->
+                <div class="form-actions">
+                    <button type="button" id="delete-listing-btn" class="btn-danger"><i class="fas fa-trash-alt"></i> Удалить объявление</button>
+                    <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Сохранить изменения</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-column">
+                <h4>О проекте</h4>
+                <a href="/about.html">О нас</a>
+                <a href="/contact.html">Контакты</a>
+            </div>
+            <div class="footer-column">
+                <h4>Правила</h4>
+                <a href="/terms.html">Пользовательское соглашение</a>
+                <a href="/privacy.html">Политика конфиденциальности</a>
+                <a href="/offer.html">Публичная оферта</a>
+            </div>
+            <div class="footer-column">
+                <h4>Помощь</h4>
+                <button id="help-btn" class="help-link"><i class="fas fa-question-circle"></i> Помощь</button>
+            </div>
+            <div class="footer-bottom">
+                <div class="copyright">© 2025 AЙДA. Все права защищены.</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Модалки -->
+    <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-trash-alt"></i> Удалить объявление?</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить это объявление? Это действие необратимо.</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary cancel-delete">Отмена</button>
+                    <button class="btn-danger confirm-delete">Удалить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="success-icon"><i class="fas fa-check-circle" style="color: #34c759; font-size: 4rem;"></i></div>
+                <h3 style="text-align: center;">Изменения сохранены!</h3>
+                <p style="text-align: center; color: var(--text-secondary);">Ваше объявление успешно обновлено.</p>
+                <div class="modal-actions" style="justify-content: center;">
+                    <button class="btn-primary" id="success-close">Просмотреть объявление</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question-circle"></i> Помощь</h3>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="help-question active" id="help-q1">
+                    <h4>Как изменить фото?</h4>
+                    <p>Нажмите на крестик на фото, чтобы удалить его. Новые фото можно добавить через область загрузки.</p>
+                </div>
+                <div class="help-question" style="display: none;" id="help-q2">
+                    <h4>Как изменить статус?</h4>
+                    <p>Выберите статус в разделе «Статус объявления»: Активно, Продано или В архив.</p>
+                </div>
+                <div class="help-nav">
+                    <button class="help-prev" id="help-prev" disabled><i class="fas fa-arrow-left"></i> Назад</button>
+                    <span class="help-counter"><span id="help-current">1</span>/2</span>
+                    <button class="help-next" id="help-next">Далее <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // Тёмная тема
+        const themeToggle = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark') root.setAttribute('data-theme', 'dark');
+        
+        themeToggle.addEventListener('click', () => {
+            if (root.getAttribute('data-theme') === 'dark') {
+                root.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                root.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        });
+
+        // Получаем ID из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const listingId = urlParams.get('id');
+        
+        if (!listingId) {
+            window.location.href = '/';
+        }
+
+        // Мок-данные объявления
+        const mockListing = {
+            id: 1,
+            title: "iPhone 15 Pro",
+            price: 89990,
+            description: "Отличное состояние, полный комплект, гарантия 1 год. Торг уместен.",
+            city: "Москва",
+            address: "ул. Тверская, 15",
+            hide_address: false,
+            category_id: "1",
+            status: "active",
+            photos: [
+                { id: 1, url: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=200&h=200&fit=crop" },
+                { id: 2, url: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?w=200&h=200&fit=crop" }
+            ],
+            specs: { "Год": "2024", "Память": "256GB", "Цвет": "Натуральный титан" }
+        };
+
+        let existingPhotos = mockListing.photos;
+        let deletedPhotoIds = [];
+        let newFiles = [];
+
+        // Загрузка данных
+        function loadListing() {
+            setTimeout(() => {
+                document.getElementById('edit-skeleton').style.display = 'none';
+                document.getElementById('edit-listing-form').style.display = 'block';
+                
+                document.getElementById('listing_id').value = mockListing.id;
+                document.getElementById('title').value = mockListing.title;
+                document.getElementById('price').value = mockListing.price;
+                document.getElementById('description').value = mockListing.description;
+                document.getElementById('city').value = mockListing.city;
+                document.getElementById('address').value = mockListing.address;
+                document.getElementById('hide-address').checked = mockListing.hide_address;
+                document.getElementById('category_id').value = mockListing.category_id;
+                
+                if (mockListing.status === 'active') {
+                    document.querySelector('input[name="status"][value="active"]').checked = true;
+                } else if (mockListing.status === 'sold') {
+                    document.querySelector('input[name="status"][value="sold"]').checked = true;
+                } else if (mockListing.status === 'archived') {
+                    document.querySelector('input[name="status"][value="archived"]').checked = true;
+                }
+                
+                renderExistingPhotos();
+                renderSpecs();
+            }, 500);
+        }
+
+        function renderExistingPhotos() {
+            const container = document.getElementById('existing-photos');
+            if (existingPhotos.length === 0) {
+                container.innerHTML = '<div class="no-photos"><i class="fas fa-camera"></i> Нет загруженных фото</div>';
+                return;
+            }
+            
+            container.innerHTML = existingPhotos.map(photo => `
+                <div class="existing-photo" data-id="${photo.id}">
+                    <img src="${photo.url}" alt="Фото">
+                    <button type="button" class="remove-existing-photo" data-id="${photo.id}"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.remove-existing-photo').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const photoId = parseInt(btn.dataset.id);
+                    if (!deletedPhotoIds.includes(photoId)) {
+                        deletedPhotoIds.push(photoId);
+                        document.getElementById('deleted_photos').value = JSON.stringify(deletedPhotoIds);
+                        btn.closest('.existing-photo').remove();
+                        showToast('Фото удалено', 'success');
+                    }
+                });
+            });
+        }
+
+        function renderSpecs() {
+            const container = document.getElementById('specs-container');
+            container.innerHTML = '';
+            for (const [key, value] of Object.entries(mockListing.specs)) {
+                addSpecField(key, value);
+            }
+        }
+
+        function addSpecField(key = '', value = '') {
+            const container = document.getElementById('specs-container');
+            const specDiv = document.createElement('div');
+            specDiv.className = 'spec-row';
+            specDiv.innerHTML = `
+                <input type="text" class="spec-key" placeholder="Название" value="${escapeHtml(key)}">
+                <input type="text" class="spec-value" placeholder="Значение" value="${escapeHtml(value)}">
+                <button type="button" class="remove-spec-btn"><i class="fas fa-trash-alt"></i></button>
+            `;
+            container.appendChild(specDiv);
+            specDiv.querySelector('.remove-spec-btn').onclick = () => specDiv.remove();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // Загрузка фото
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const previewContainer = document.getElementById('photo-preview');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--accent)';
+        });
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.style.borderColor = 'var(--border-focus)';
+        });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--border-focus)';
+            const files = Array.from(e.dataTransfer.files);
+            addNewFiles(files);
+        });
+        fileInput.addEventListener('change', (e) => addNewFiles(Array.from(e.target.files)));
+
+        function addNewFiles(files) {
+            const remaining = 10 - (existingPhotos.length + newFiles.length);
+            const toAdd = files.slice(0, remaining);
+            newFiles.push(...toAdd);
+            renderNewPreviews();
+            fileInput.value = '';
+        }
+
+        function renderNewPreviews() {
+            previewContainer.innerHTML = newFiles.map((file, idx) => `
+                <div class="preview-item" style="position: relative; width: 80px; height: 80px; border-radius: 12px; overflow: hidden; border: 0.5px solid var(--border);">
+                    <img src="${URL.createObjectURL(file)}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <button class="remove-new-preview" data-idx="${idx}" style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 20px; height: 20px; color: white; cursor: pointer;"><i class="fas fa-times" style="font-size: 10px;"></i></button>
+                </div>
+            `).join('');
+            document.querySelectorAll('.remove-new-preview').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.idx);
+                    newFiles.splice(idx, 1);
+                    renderNewPreviews();
+                });
+            });
+        }
+
+        // Город
+        const cityInput = document.getElementById('city');
+        const suggestionsDiv = document.getElementById('city-suggestions');
+        cityInput.addEventListener('input', () => {
+            const query = cityInput.value.trim();
+            if (query.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            const cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань'];
+            const filtered = cities.filter(c => c.toLowerCase().includes(query.toLowerCase()));
+            if (filtered.length) {
+                suggestionsDiv.innerHTML = filtered.map(c => `<div class="city-suggestion">${c}</div>`).join('');
+                suggestionsDiv.style.display = 'block';
+                document.querySelectorAll('.city-suggestion').forEach(el => {
+                    el.onclick = () => {
+                        cityInput.value = el.textContent;
+                        suggestionsDiv.style.display = 'none';
+                    };
+                });
+            } else {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!cityInput.contains(e.target)) suggestionsDiv.style.display = 'none';
+        });
+
+        // Сохранение
+        document.getElementById('edit-listing-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            document.getElementById('success-modal').classList.add('active');
+        });
+
+        document.getElementById('success-close').addEventListener('click', () => {
+            document.getElementById('success-modal').classList.remove('active');
+            window.location.href = `/listing.html?id=${listingId}`;
+        });
+
+        // Удаление
+        const deleteBtn = document.getElementById('delete-listing-btn');
+        const deleteModal = document.getElementById('delete-confirm-modal');
+        
+        deleteBtn.addEventListener('click', () => deleteModal.classList.add('active'));
+        
+        document.querySelector('.cancel-delete').addEventListener('click', () => deleteModal.classList.remove('active'));
+        document.querySelector('.confirm-delete').addEventListener('click', () => {
+            deleteModal.classList.remove('active');
+            showToast('Объявление удалено', 'success');
+            setTimeout(() => window.location.href = '/', 1500);
+        });
+
+        // Помощь
+        const helpBtn = document.getElementById('help-btn');
+        const helpModal = document.getElementById('help-modal');
+        let currentHelp = 1;
+        const prevBtn = document.getElementById('help-prev');
+        const nextBtn = document.getElementById('help-next');
+        const currentSpan = document.getElementById('help-current');
+
+        helpBtn.onclick = () => helpModal.classList.add('active');
+        helpModal.querySelector('.modal-close').onclick = () => helpModal.classList.remove('active');
+        
+        prevBtn.onclick = () => {
+            if (currentHelp > 1) {
+                document.getElementById(`help-q${currentHelp}`).style.display = 'none';
+                currentHelp--;
+                document.getElementById(`help-q${currentHelp}`).style.display = 'block';
+                currentSpan.textContent = currentHelp;
+                nextBtn.disabled = false;
+                if (currentHelp === 1) prevBtn.disabled = true;
+            }
+        };
+        
+        nextBtn.onclick = () => {
+            if (currentHelp < 2) {
+                document.getElementById(`help-q${currentHelp}`).style.display = 'none';
+                currentHelp++;
+                document.getElementById(`help-q${currentHelp}`).style.display = 'block';
+                currentSpan.textContent = currentHelp;
+                prevBtn.disabled = false;
+                if (currentHelp === 2) nextBtn.disabled = true;
+            }
+        };
+
+        // Toast
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Закрытие модалок
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = btn.closest('.modal');
+                if (modal) modal.classList.remove('active');
+            });
+        });
+
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        });
+
+        document.getElementById('add-spec-btn').addEventListener('click', () => addSpecField());
+
+        // Запуск
+        loadListing();
+    </script>
+</body>
+</html>

@@ -1,0 +1,656 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/search.js
+ * Описание: Поиск и фильтрация объявлений, автодополнение, сохранение поиска
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let searchParams = new URLSearchParams(window.location.search);
+let currentSearchQuery = searchParams.get('q') || '';
+let currentFilters = {
+    q: currentSearchQuery,
+    category_id: searchParams.get('category_id') || null,
+    price_min: searchParams.get('price_min') || null,
+    price_max: searchParams.get('price_max') || null,
+    city: searchParams.get('city') || null,
+    radius: searchParams.get('radius') || null,
+    lat: searchParams.get('lat') || null,
+    lng: searchParams.get('lng') || null,
+    seller_type: searchParams.get('seller_type') || 'all',
+    sort: searchParams.get('sort') || 'created_desc'
+};
+
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+let searchHistory = [];
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+function initSearch() {
+    // Загружаем историю поиска
+    loadSearchHistory();
+    
+    // Заполняем форму фильтров
+    populateFiltersForm();
+    
+    // Выполняем поиск
+    performSearch();
+    
+    // Инициализируем автодополнение
+    initAutocomplete();
+    
+    // Инициализируем фильтры
+    initFilters();
+    
+    // Инициализируем сохранённые поиски
+    initSavedSearches();
+}
+
+// ============================================
+// ОСНОВНОЙ ПОИСК
+// ============================================
+
+async function performSearch(append = false) {
+    if (isLoading) return;
+    
+    isLoading = true;
+    
+    const container = document.getElementById('search-results');
+    const skeleton = document.getElementById('results-skeleton');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    
+    if (!append && skeleton) skeleton.style.display = 'block';
+    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+    
+    try {
+        const params = new URLSearchParams({
+            limit: 20,
+            page: append ? currentPage : 1,
+            ...currentFilters
+        });
+        
+        // Удаляем null значения
+        for (const [key, value] of params.entries()) {
+            if (!value || value === 'null') params.delete(key);
+        }
+        
+        const response = await fetch(`/api/v1/listings?${params}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            if (append) {
+                renderResults(data.listings, true);
+                currentPage++;
+                hasMore = data.hasMore;
+            } else {
+                renderResults(data.listings, false);
+                currentPage = 2;
+                hasMore = data.hasMore;
+                
+                // Обновляем URL с параметрами поиска
+                updateSearchURL();
+                
+                // Сохраняем поиск в историю
+                if (currentSearchQuery && currentSearchQuery.length > 2) {
+                    saveSearchToHistory(currentSearchQuery);
+                }
+            }
+            
+            // Показываем/скрываем кнопку "Загрузить ещё"
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = hasMore ? 'block' : 'none';
+            }
+            
+            // Обновляем счётчик результатов
+            updateResultsCount(data.total || data.listings.length);
+        } else {
+            showToast(data.error || 'Ошибка поиска', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка поиска:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+    } finally {
+        isLoading = false;
+        if (skeleton) skeleton.style.display = 'none';
+    }
+}
+
+function renderResults(listings, append = false) {
+    const container = document.getElementById('search-results');
+    if (!container) return;
+    
+    if (!append) container.innerHTML = '';
+    
+    if (!listings || listings.length === 0) {
+        if (!append) {
+            container.innerHTML = `
+                <div class="empty-search">
+                    <div class="empty-icon">🔍</div>
+                    <h3>Ничего не найдено</h3>
+                    <p>Попробуйте изменить параметры поиска</p>
+                    <button class="btn-primary" onclick="resetFilters()">Сбросить фильтры</button>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    listings.forEach(listing => {
+        const card = createSearchResultCard(listing);
+        container.appendChild(card);
+    });
+}
+
+function createSearchResultCard(listing) {
+    const card = document.createElement('div');
+    card.className = 'search-result-card';
+    card.dataset.id = listing.id;
+    
+    const firstPhoto = listing.photos?.[0] || '/images/placeholder.jpg';
+    const priceFormatted = formatPrice(listing.price);
+    const timeAgo = formatTime(listing.created_at);
+    
+    card.innerHTML = `
+        <div class="result-image">
+            <img data-src="${firstPhoto}" alt="${escapeHtml(listing.title)}" loading="lazy">
+            ${listing.is_vip ? '<span class="vip-badge">VIP</span>' : ''}
+        </div>
+        <div class="result-info">
+            <div class="result-price">${priceFormatted}</div>
+            <div class="result-title">${escapeHtml(listing.title)}</div>
+            <div class="result-meta">
+                <span class="result-location">📍 ${escapeHtml(listing.city || 'Не указан')}</span>
+                <span class="result-time">🕒 ${timeAgo}</span>
+            </div>
+            <div class="result-seller">
+                <img class="seller-avatar" src="${listing.seller_avatar || '/images/default-avatar.png'}">
+                <span>${escapeHtml(listing.seller_name)}</span>
+                <span class="seller-rating">⭐ ${listing.seller_rating || 0}</span>
+            </div>
+        </div>
+    `;
+    
+    card.addEventListener('click', () => {
+        window.location.href = `/listing.html?id=${listing.id}`;
+    });
+    
+    // Ленивая загрузка
+    const img = card.querySelector('img');
+    if (img && img.dataset.src) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
+            });
+        });
+        observer.observe(img);
+    }
+    
+    return card;
+}
+
+// ============================================
+// ФИЛЬТРЫ
+// ============================================
+
+function initFilters() {
+    // Кнопка открытия/закрытия фильтров
+    const filterToggle = document.getElementById('filter-toggle');
+    const filterPanel = document.getElementById('filter-panel');
+    
+    if (filterToggle && filterPanel) {
+        filterToggle.addEventListener('click', () => {
+            filterPanel.classList.toggle('open');
+        });
+    }
+    
+    // Применение фильтров
+    const applyFiltersBtn = document.getElementById('apply-filters');
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', applyFilters);
+    }
+    
+    // Сброс фильтров
+    const resetFiltersBtn = document.getElementById('reset-filters');
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', resetFilters);
+    }
+    
+    // Сортировка
+    const sortSelect = document.getElementById('sort-by');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', (e) => {
+            currentFilters.sort = e.target.value;
+            resetAndSearch();
+        });
+    }
+    
+    // Радиус (слайдер)
+    const radiusSlider = document.getElementById('radius-slider');
+    const radiusValue = document.getElementById('radius-value');
+    if (radiusSlider && radiusValue) {
+        radiusSlider.addEventListener('input', (e) => {
+            radiusValue.textContent = `${e.target.value} км`;
+            currentFilters.radius = e.target.value;
+        });
+    }
+    
+    // Тип продавца
+    const sellerTypeRadios = document.querySelectorAll('input[name="seller_type"]');
+    sellerTypeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                currentFilters.seller_type = e.target.value;
+            }
+        });
+    });
+}
+
+function applyFilters() {
+    // Собираем значения из формы
+    const categorySelect = document.getElementById('filter-category');
+    const priceMin = document.getElementById('filter-price-min');
+    const priceMax = document.getElementById('filter-price-max');
+    const cityInput = document.getElementById('filter-city');
+    const radiusSlider = document.getElementById('radius-slider');
+    
+    if (categorySelect) currentFilters.category_id = categorySelect.value || null;
+    if (priceMin) currentFilters.price_min = priceMin.value || null;
+    if (priceMax) currentFilters.price_max = priceMax.value || null;
+    if (cityInput) currentFilters.city = cityInput.value || null;
+    if (radiusSlider) currentFilters.radius = radiusSlider.value || null;
+    
+    resetAndSearch();
+}
+
+function resetFilters() {
+    currentFilters = {
+        q: currentSearchQuery,
+        category_id: null,
+        price_min: null,
+        price_max: null,
+        city: null,
+        radius: null,
+        lat: null,
+        lng: null,
+        seller_type: 'all',
+        sort: 'created_desc'
+    };
+    
+    // Сбрасываем форму
+    const filterForm = document.getElementById('filters-form');
+    if (filterForm) filterForm.reset();
+    
+    const radiusSlider = document.getElementById('radius-slider');
+    const radiusValue = document.getElementById('radius-value');
+    if (radiusSlider && radiusValue) {
+        radiusSlider.value = 50;
+        radiusValue.textContent = '50 км';
+    }
+    
+    resetAndSearch();
+}
+
+function resetAndSearch() {
+    currentPage = 1;
+    hasMore = true;
+    performSearch(false);
+}
+
+// ============================================
+// АВТОДОПОЛНЕНИЕ
+// ============================================
+
+let autocompleteTimeout;
+
+function initAutocomplete() {
+    const searchInput = document.getElementById('search-input');
+    const autocompleteContainer = document.getElementById('autocomplete-results');
+    
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        
+        clearTimeout(autocompleteTimeout);
+        
+        if (query.length < 2) {
+            if (autocompleteContainer) autocompleteContainer.style.display = 'none';
+            return;
+        }
+        
+        autocompleteTimeout = setTimeout(() => {
+            fetchAutocompleteSuggestions(query);
+        }, 300);
+    });
+    
+    // Закрытие автодополнения при клике вне
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !autocompleteContainer?.contains(e.target)) {
+            if (autocompleteContainer) autocompleteContainer.style.display = 'none';
+        }
+    });
+}
+
+async function fetchAutocompleteSuggestions(query) {
+    const autocompleteContainer = document.getElementById('autocomplete-results');
+    
+    try {
+        const response = await fetch(`/api/v1/search/suggest?q=${encodeURIComponent(query)}&limit=10`);
+        const data = await response.json();
+        
+        if (autocompleteContainer && data.suggestions && data.suggestions.length > 0) {
+            autocompleteContainer.innerHTML = data.suggestions.map(s => `
+                <div class="autocomplete-item" data-query="${escapeHtml(s.query)}">
+                    <span class="autocomplete-icon">🔍</span>
+                    <span class="autocomplete-text">${escapeHtml(s.query)}</span>
+                    <span class="autocomplete-count">${formatNumber(s.count)}</span>
+                </div>
+            `).join('');
+            
+            autocompleteContainer.style.display = 'block';
+            
+            // Обработчики клика
+            document.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const query = item.dataset.query;
+                    const searchInput = document.getElementById('search-input');
+                    if (searchInput) searchInput.value = query;
+                    currentSearchQuery = query;
+                    currentFilters.q = query;
+                    resetAndSearch();
+                    autocompleteContainer.style.display = 'none';
+                });
+            });
+        } else if (autocompleteContainer) {
+            autocompleteContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Ошибка автодополнения:', error);
+    }
+}
+
+// ============================================
+// ИСТОРИЯ ПОИСКА
+// ============================================
+
+function loadSearchHistory() {
+    const saved = localStorage.getItem('search_history');
+    if (saved) {
+        searchHistory = JSON.parse(saved);
+    }
+    renderSearchHistory();
+}
+
+function saveSearchToHistory(query) {
+    // Удаляем дубликаты
+    searchHistory = searchHistory.filter(h => h !== query);
+    // Добавляем в начало
+    searchHistory.unshift(query);
+    // Ограничиваем 20 элементами
+    searchHistory = searchHistory.slice(0, 20);
+    
+    localStorage.setItem('search_history', JSON.stringify(searchHistory));
+    renderSearchHistory();
+}
+
+function renderSearchHistory() {
+    const container = document.getElementById('search-history');
+    if (!container) return;
+    
+    if (searchHistory.length === 0) {
+        container.innerHTML = '<div class="history-empty">История поиска пуста</div>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="history-header">
+            <span>Недавние поиски</span>
+            <button class="clear-history-btn">Очистить</button>
+        </div>
+        <div class="history-list">
+            ${searchHistory.map(query => `
+                <div class="history-item" data-query="${escapeHtml(query)}">
+                    <span class="history-icon">🕒</span>
+                    <span class="history-text">${escapeHtml(query)}</span>
+                    <button class="history-delete" data-query="${escapeHtml(query)}">✕</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    // Обработчики
+    document.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.classList.contains('history-delete')) return;
+            const query = item.dataset.query;
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = query;
+            currentSearchQuery = query;
+            currentFilters.q = query;
+            resetAndSearch();
+        });
+    });
+    
+    document.querySelectorAll('.history-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const query = btn.dataset.query;
+            searchHistory = searchHistory.filter(h => h !== query);
+            localStorage.setItem('search_history', JSON.stringify(searchHistory));
+            renderSearchHistory();
+        });
+    });
+    
+    const clearBtn = container.querySelector('.clear-history-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchHistory = [];
+            localStorage.setItem('search_history', JSON.stringify(searchHistory));
+            renderSearchHistory();
+        });
+    }
+}
+
+// ============================================
+// СОХРАНЁННЫЕ ПОИСКИ
+// ============================================
+
+let savedSearches = [];
+
+function loadSavedSearches() {
+    const saved = localStorage.getItem('saved_searches');
+    if (saved) {
+        savedSearches = JSON.parse(saved);
+    }
+    renderSavedSearches();
+}
+
+function initSavedSearches() {
+    loadSavedSearches();
+    
+    const saveSearchBtn = document.getElementById('save-search-btn');
+    if (saveSearchBtn) {
+        saveSearchBtn.addEventListener('click', saveCurrentSearch);
+    }
+}
+
+function saveCurrentSearch() {
+    const searchName = prompt('Введите название для сохранённого поиска');
+    if (!searchName) return;
+    
+    const savedSearch = {
+        id: Date.now(),
+        name: searchName,
+        filters: { ...currentFilters },
+        created_at: new Date().toISOString()
+    };
+    
+    savedSearches.unshift(savedSearch);
+    savedSearches = savedSearches.slice(0, 20);
+    
+    localStorage.setItem('saved_searches', JSON.stringify(savedSearches));
+    renderSavedSearches();
+    
+    showToast('Поиск сохранён', 'success');
+}
+
+function renderSavedSearches() {
+    const container = document.getElementById('saved-searches');
+    if (!container) return;
+    
+    if (savedSearches.length === 0) {
+        container.innerHTML = '<div class="saved-empty">Нет сохранённых поисков</div>';
+        return;
+    }
+    
+    container.innerHTML = savedSearches.map(search => `
+        <div class="saved-search-item" data-id="${search.id}">
+            <div class="saved-name">🔖 ${escapeHtml(search.name)}</div>
+            <div class="saved-actions">
+                <button class="saved-load" data-id="${search.id}">🔍</button>
+                <button class="saved-delete" data-id="${search.id}">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+    
+    // Загрузка сохранённого поиска
+    document.querySelectorAll('.saved-load').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = parseInt(btn.dataset.id);
+            const search = savedSearches.find(s => s.id === id);
+            if (search) {
+                currentFilters = { ...search.filters };
+                populateFiltersForm();
+                resetAndSearch();
+            }
+        });
+    });
+    
+    // Удаление
+    document.querySelectorAll('.saved-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = parseInt(btn.dataset.id);
+            savedSearches = savedSearches.filter(s => s.id !== id);
+            localStorage.setItem('saved_searches', JSON.stringify(savedSearches));
+            renderSavedSearches();
+            showToast('Поиск удалён', 'info');
+        });
+    });
+}
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
+
+function populateFiltersForm() {
+    // Заполняем форму текущими фильтрами
+    const categorySelect = document.getElementById('filter-category');
+    const priceMin = document.getElementById('filter-price-min');
+    const priceMax = document.getElementById('filter-price-max');
+    const cityInput = document.getElementById('filter-city');
+    
+    if (categorySelect && currentFilters.category_id) {
+        categorySelect.value = currentFilters.category_id;
+    }
+    if (priceMin && currentFilters.price_min) {
+        priceMin.value = currentFilters.price_min;
+    }
+    if (priceMax && currentFilters.price_max) {
+        priceMax.value = currentFilters.price_max;
+    }
+    if (cityInput && currentFilters.city) {
+        cityInput.value = currentFilters.city;
+    }
+    
+    // Радиус
+    const radiusSlider = document.getElementById('radius-slider');
+    const radiusValue = document.getElementById('radius-value');
+    if (radiusSlider && currentFilters.radius) {
+        radiusSlider.value = currentFilters.radius;
+        if (radiusValue) radiusValue.textContent = `${currentFilters.radius} км`;
+    }
+    
+    // Тип продавца
+    if (currentFilters.seller_type) {
+        const radio = document.querySelector(`input[name="seller_type"][value="${currentFilters.seller_type}"]`);
+        if (radio) radio.checked = true;
+    }
+    
+    // Сортировка
+    const sortSelect = document.getElementById('sort-by');
+    if (sortSelect && currentFilters.sort) {
+        sortSelect.value = currentFilters.sort;
+    }
+    
+    // Поисковая строка
+    const searchInput = document.getElementById('search-input');
+    if (searchInput && currentSearchQuery) {
+        searchInput.value = currentSearchQuery;
+    }
+}
+
+function updateSearchURL() {
+    const params = new URLSearchParams();
+    
+    if (currentSearchQuery) params.set('q', currentSearchQuery);
+    if (currentFilters.category_id) params.set('category_id', currentFilters.category_id);
+    if (currentFilters.price_min) params.set('price_min', currentFilters.price_min);
+    if (currentFilters.price_max) params.set('price_max', currentFilters.price_max);
+    if (currentFilters.city) params.set('city', currentFilters.city);
+    if (currentFilters.radius) params.set('radius', currentFilters.radius);
+    if (currentFilters.seller_type !== 'all') params.set('seller_type', currentFilters.seller_type);
+    if (currentFilters.sort !== 'created_desc') params.set('sort', currentFilters.sort);
+    
+    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.pushState({}, '', newUrl);
+}
+
+function updateResultsCount(count) {
+    const countElement = document.getElementById('results-count');
+    if (countElement) {
+        countElement.textContent = `Найдено ${formatNumber(count)} объявлений`;
+    }
+}
+
+// Бесконечная прокрутка
+function initInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        if (isLoading || !hasMore) return;
+        
+        const scrollPosition = window.scrollY + window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        if (scrollPosition >= documentHeight - 500) {
+            performSearch(true);
+        }
+    });
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initSearch = initSearch;
+window.performSearch = performSearch;
+window.applyFilters = applyFilters;
+window.resetFilters = resetFilters;
+window.saveCurrentSearch = saveCurrentSearch;
+
+// Запуск
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('search.html')) {
+        initSearch();
+        initInfiniteScroll();
+    }
+});

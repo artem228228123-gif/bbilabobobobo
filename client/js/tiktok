@@ -1,0 +1,786 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/tiktok.js
+ * Описание: TikTok-лента — загрузка видео, жесты, лайки, подписки, аналитика
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+let tiktokState = {
+    currentFeed: [],
+    currentIndex: 0,
+    isLoading: false,
+    hasMore: true,
+    nextCursor: null,
+    feedType: 'for_you', // for_you, subscriptions
+    activeVideoPlayers: new Map(),
+    observedCards: new Map(),
+    viewStartTimes: new Map(),
+    isMuted: true,
+    preloadedVideos: new Set(),
+};
+
+// DOM элементы
+let tiktokContainer = null;
+let observer = null;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ ЛЕНТЫ
+// ============================================
+
+async function initTikTokFeed() {
+    tiktokContainer = document.querySelector('.tiktok-container');
+    if (!tiktokContainer) return;
+    
+    // Загружаем первую порцию
+    await loadFeed();
+    
+    // Настраиваем Intersection Observer для видео
+    setupIntersectionObserver();
+    
+    // Настраиваем обработчики событий
+    setupEventListeners();
+    
+    // Настраиваем клавиатурные сокращения
+    setupKeyboardShortcuts();
+}
+
+// ============================================
+// ЗАГРУЗКА ЛЕНТЫ
+// ============================================
+
+async function loadFeed() {
+    if (tiktokState.isLoading) return;
+    
+    tiktokState.isLoading = true;
+    showLoadingIndicator();
+    
+    try {
+        const url = `/api/v1/tiktok/feed?type=${tiktokState.feedType}&limit=10${tiktokState.nextCursor ? `&cursor=${tiktokState.nextCursor}` : ''}`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Ошибка загрузки ленты');
+        
+        const data = await response.json();
+        
+        if (data.listings && data.listings.length > 0) {
+            // Добавляем новые объявления в конец ленты
+            const newCards = renderCards(data.listings);
+            tiktokContainer.appendChild(newCards);
+            
+            tiktokState.currentFeed.push(...data.listings);
+            tiktokState.nextCursor = data.nextCursor;
+            tiktokState.hasMore = data.hasMore;
+            
+            // Обновляем Intersection Observer для новых карточек
+            observeNewCards();
+        } else if (tiktokState.currentFeed.length === 0) {
+            showEmptyState();
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки ленты:', error);
+        showErrorState();
+    } finally {
+        tiktokState.isLoading = false;
+        hideLoadingIndicator();
+    }
+}
+
+// ============================================
+// ОТРИСОВКА КАРТОЧЕК
+// ============================================
+
+function renderCards(listings) {
+    const fragment = document.createDocumentFragment();
+    
+    listings.forEach((listing, idx) => {
+        const card = document.createElement('div');
+        card.className = 'tiktok-card';
+        card.dataset.id = listing.id;
+        card.dataset.index = tiktokState.currentFeed.length + idx;
+        card.dataset.userId = listing.user_id;
+        
+        // Медиа контент
+        const mediaContainer = document.createElement('div');
+        mediaContainer.className = 'tiktok-media-container';
+        
+        const slider = document.createElement('div');
+        slider.className = 'tiktok-media-slider';
+        
+        // Фото/видео слайды
+        const mediaItems = listing.photos || [listing.photo_url || '/images/placeholder.jpg'];
+        mediaItems.forEach((media, mediaIdx) => {
+            const slide = document.createElement('div');
+            slide.className = 'tiktok-slide';
+            
+            const isVideo = media.match(/\.(mp4|webm|mov)$/i);
+            if (isVideo) {
+                const video = document.createElement('video');
+                video.src = media;
+                video.className = 'tiktok-video-player';
+                video.loop = true;
+                video.muted = tiktokState.isMuted;
+                video.playsInline = true;
+                video.preload = 'metadata';
+                slide.appendChild(video);
+            } else {
+                const img = document.createElement('img');
+                img.src = media;
+                img.alt = listing.title;
+                img.loading = 'lazy';
+                slide.appendChild(img);
+            }
+            
+            slider.appendChild(slide);
+        });
+        
+        mediaContainer.appendChild(slider);
+        
+        // Индикаторы слайдов
+        if (mediaItems.length > 1) {
+            const indicators = document.createElement('div');
+            indicators.className = 'tiktok-slide-indicators';
+            for (let i = 0; i < mediaItems.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'tiktok-slide-indicator';
+                if (i === 0) dot.classList.add('active');
+                indicators.appendChild(dot);
+            }
+            mediaContainer.appendChild(indicators);
+        }
+        
+        card.appendChild(mediaContainer);
+        
+        // Правая панель с кнопками
+        const actions = document.createElement('div');
+        actions.className = 'tiktok-actions';
+        actions.innerHTML = `
+            <button class="tiktok-action-btn like-btn" data-likes="${listing.likes || 0}">
+                <div class="tiktok-action-icon">❤️</div>
+                <span class="tiktok-action-count">${formatNumber(listing.likes || 0)}</span>
+            </button>
+            <button class="tiktok-action-btn chat-btn">
+                <div class="tiktok-action-icon">💬</div>
+                <span class="tiktok-action-count">${listing.chats_count || 0}</span>
+            </button>
+            <button class="tiktok-action-btn share-btn">
+                <div class="tiktok-action-icon">🔁</div>
+            </button>
+            <button class="tiktok-action-btn sound-btn">
+                <div class="tiktok-action-icon">${tiktokState.isMuted ? '🔇' : '🔊'}</div>
+            </button>
+            <button class="tiktok-subscribe-btn" data-subscribed="${listing.isSubscribed || false}">
+                ${listing.isSubscribed ? 'Подписан' : 'Подписаться'}
+            </button>
+        `;
+        card.appendChild(actions);
+        
+        // Нижняя панель с информацией
+        const info = document.createElement('div');
+        info.className = 'tiktok-info';
+        info.innerHTML = `
+            <div class="tiktok-price">${formatPrice(listing.price)}</div>
+            <div class="tiktok-title">${escapeHtml(listing.title)}</div>
+            <div class="tiktok-description">${escapeHtml(listing.description || '').substring(0, 100)}</div>
+            ${listing.description && listing.description.length > 100 ? '<div class="tiktok-description-more">... ещё</div>' : ''}
+            <div class="tiktok-seller">
+                <img class="tiktok-seller-avatar" src="${listing.seller_avatar || '/images/default-avatar.png'}" alt="${listing.seller_name}">
+                <div class="tiktok-seller-info">
+                    <div class="tiktok-seller-name">${escapeHtml(listing.seller_name)}</div>
+                    <div class="tiktok-seller-rating">
+                        <span class="stars">${renderStars(listing.seller_rating || 0)}</span>
+                        <span>${listing.seller_rating || 0}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tiktok-hashtags">
+                ${generateHashtags(listing.title, listing.category_name)}
+            </div>
+        `;
+        card.appendChild(info);
+        
+        fragment.appendChild(card);
+    });
+    
+    return fragment;
+}
+
+// ============================================
+// INTERSECTION OBSERVER (АКТИВАЦИЯ КАРТОЧЕК)
+// ============================================
+
+function setupIntersectionObserver() {
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const card = entry.target;
+            const index = parseInt(card.dataset.index);
+            
+            if (entry.isIntersecting) {
+                activateCard(card, index);
+            } else {
+                deactivateCard(card);
+            }
+        });
+    }, { threshold: 0.6 }); // Карточка считается активной при 60% видимости
+}
+
+function observeNewCards() {
+    const cards = document.querySelectorAll('.tiktok-card');
+    cards.forEach(card => {
+        if (!tiktokState.observedCards.has(card)) {
+            observer.observe(card);
+            tiktokState.observedCards.set(card, true);
+        }
+    });
+}
+
+// ============================================
+// АКТИВАЦИЯ/ДЕАКТИВАЦИЯ КАРТОЧКИ
+// ============================================
+
+function activateCard(card, index) {
+    tiktokState.currentIndex = index;
+    
+    // Запускаем видео
+    const video = card.querySelector('video');
+    if (video && !tiktokState.activeVideoPlayers.has(video)) {
+        video.play().catch(e => console.log('Автовоспроизведение заблокировано', e));
+        tiktokState.activeVideoPlayers.set(video, true);
+    }
+    
+    // Отслеживаем просмотр
+    startViewTracking(card.dataset.id);
+    
+    // Предзагружаем следующее видео
+    preloadNextVideo(index);
+    
+    // Отправляем аналитику
+    sendAnalytics('view_start', { listingId: card.dataset.id });
+}
+
+function deactivateCard(card) {
+    // Останавливаем видео
+    const video = card.querySelector('video');
+    if (video) {
+        video.pause();
+        video.currentTime = 0;
+        tiktokState.activeVideoPlayers.delete(video);
+    }
+    
+    // Завершаем отслеживание просмотра
+    stopViewTracking(card.dataset.id);
+}
+
+// ============================================
+// ОТСЛЕЖИВАНИЕ ПРОСМОТРОВ
+// ============================================
+
+function startViewTracking(listingId) {
+    const startTime = Date.now();
+    tiktokState.viewStartTimes.set(listingId, startTime);
+}
+
+async function stopViewTracking(listingId) {
+    const startTime = tiktokState.viewStartTimes.get(listingId);
+    if (!startTime) return;
+    
+    const duration = Date.now() - startTime;
+    tiktokState.viewStartTimes.delete(listingId);
+    
+    // Отправляем данные о просмотре (только если больше 3 секунд)
+    if (duration >= 3000) {
+        try {
+            await fetch(`/api/v1/tiktok/${listingId}/view`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ duration: Math.floor(duration / 1000) })
+            });
+        } catch (error) {
+            console.error('Ошибка отправки просмотра:', error);
+        }
+    }
+}
+
+// ============================================
+// ПРЕДЗАГРУЗКА ВИДЕО
+// ============================================
+
+function preloadNextVideo(currentIndex) {
+    const nextCard = document.querySelector(`.tiktok-card[data-index="${currentIndex + 1}"]`);
+    if (nextCard && !tiktokState.preloadedVideos.has(nextCard.dataset.id)) {
+        const nextVideo = nextCard.querySelector('video');
+        if (nextVideo && nextVideo.preload !== 'auto') {
+            nextVideo.preload = 'auto';
+            nextVideo.load();
+            tiktokState.preloadedVideos.add(nextCard.dataset.id);
+        }
+    }
+}
+
+// ============================================
+// ОБРАБОТЧИКИ СОБЫТИЙ
+// ============================================
+
+function setupEventListeners() {
+    // Вертикальный скролл (определение активной карточки)
+    tiktokContainer.addEventListener('scrollend', () => {
+        updateActiveCard();
+    });
+    
+    // Делегирование событий для кнопок
+    tiktokContainer.addEventListener('click', (e) => {
+        const likeBtn = e.target.closest('.like-btn');
+        const chatBtn = e.target.closest('.chat-btn');
+        const shareBtn = e.target.closest('.share-btn');
+        const soundBtn = e.target.closest('.sound-btn');
+        const subscribeBtn = e.target.closest('.tiktok-subscribe-btn');
+        const hashtag = e.target.closest('.tiktok-hashtag');
+        const descriptionMore = e.target.closest('.tiktok-description-more');
+        
+        if (likeBtn) handleLike(likeBtn);
+        if (chatBtn) handleChat(chatBtn);
+        if (shareBtn) handleShare(shareBtn);
+        if (soundBtn) handleSound(soundBtn);
+        if (subscribeBtn) handleSubscribe(subscribeBtn);
+        if (hashtag) handleHashtag(hashtag);
+        if (descriptionMore) expandDescription(descriptionMore);
+    });
+    
+    // Жесты
+    setupGestures();
+}
+
+function updateActiveCard() {
+    const cards = document.querySelectorAll('.tiktok-card');
+    const containerRect = tiktokContainer.getBoundingClientRect();
+    
+    for (const card of cards) {
+        const cardRect = card.getBoundingClientRect();
+        const visiblePercent = (containerRect.bottom - cardRect.top) / cardRect.height;
+        
+        if (visiblePercent > 0.5 && visiblePercent < 1.5) {
+            const index = parseInt(card.dataset.index);
+            if (index !== tiktokState.currentIndex) {
+                deactivateCard(document.querySelector(`.tiktok-card[data-index="${tiktokState.currentIndex}"]`));
+                activateCard(card, index);
+            }
+            break;
+        }
+    }
+}
+
+// ============================================
+// ОБРАБОТКА ЛАЙКОВ
+// ============================================
+
+async function handleLike(btn) {
+    const card = btn.closest('.tiktok-card');
+    const listingId = card.dataset.id;
+    const isLiked = btn.classList.contains('liked');
+    const countSpan = btn.querySelector('.tiktok-action-count');
+    let currentCount = parseInt(countSpan.textContent);
+    
+    // Оптимистичное обновление UI
+    if (isLiked) {
+        btn.classList.remove('liked');
+        currentCount--;
+        countSpan.textContent = formatNumber(currentCount);
+    } else {
+        btn.classList.add('liked');
+        currentCount++;
+        countSpan.textContent = formatNumber(currentCount);
+        
+        // Анимация сердечка
+        showHeartAnimation(btn);
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/tiktok/${listingId}/like`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            // Откат при ошибке
+            if (isLiked) {
+                btn.classList.add('liked');
+                currentCount++;
+            } else {
+                btn.classList.remove('liked');
+                currentCount--;
+            }
+            countSpan.textContent = formatNumber(currentCount);
+            throw new Error('Ошибка');
+        }
+        
+        const data = await response.json();
+        countSpan.textContent = formatNumber(data.likesCount);
+        
+    } catch (error) {
+        console.error('Ошибка лайка:', error);
+        showToast('Не удалось поставить лайк', 'error');
+    }
+}
+
+function showHeartAnimation(btn) {
+    const rect = btn.getBoundingClientRect();
+    const heart = document.createElement('div');
+    heart.className = 'tiktok-floating-heart';
+    heart.innerHTML = '❤️';
+    heart.style.left = `${rect.left + rect.width / 2}px`;
+    heart.style.top = `${rect.top}px`;
+    document.body.appendChild(heart);
+    
+    setTimeout(() => heart.remove(), 1000);
+}
+
+// ============================================
+// ОБРАБОТКА ПОДПИСОК
+// ============================================
+
+async function handleSubscribe(btn) {
+    const card = btn.closest('.tiktok-card');
+    const sellerId = card.dataset.userId;
+    const isSubscribed = btn.dataset.subscribed === 'true';
+    
+    try {
+        let response;
+        if (isSubscribed) {
+            response = await fetch(`/api/v1/tiktok/subscribe/${sellerId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+        } else {
+            response = await fetch(`/api/v1/tiktok/subscribe/${sellerId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+        }
+        
+        if (!response.ok) throw new Error('Ошибка');
+        
+        const data = await response.json();
+        btn.textContent = data.subscribed ? 'Подписан' : 'Подписаться';
+        btn.dataset.subscribed = data.subscribed;
+        
+        showToast(data.subscribed ? 'Вы подписались' : 'Вы отписались', 'success');
+        
+    } catch (error) {
+        console.error('Ошибка подписки:', error);
+        showToast('Не удалось изменить подписку', 'error');
+    }
+}
+
+// ============================================
+// ЖЕСТЫ (ДВОЙНОЙ ТАП, СВАЙП)
+// ============================================
+
+function setupGestures() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTap = 0;
+    
+    tiktokContainer.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+        
+        // Двойной тап для лайка
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 300 && tapLength > 0) {
+            e.preventDefault();
+            const card = e.target.closest('.tiktok-card');
+            if (card) {
+                const likeBtn = card.querySelector('.like-btn');
+                if (likeBtn) handleLike(likeBtn);
+                
+                // Анимация в месте тапа
+                const x = e.changedTouches[0].clientX;
+                const y = e.changedTouches[0].clientY;
+                showTapHeartAnimation(x, y);
+            }
+        }
+        lastTap = currentTime;
+    });
+    
+    tiktokContainer.addEventListener('touchend', (e) => {
+        const diffX = e.changedTouches[0].screenX - touchStartX;
+        const diffY = e.changedTouches[0].screenY - touchStartY;
+        
+        // Горизонтальный свайп для переключения фото/видео
+        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+            const card = e.target.closest('.tiktok-card');
+            if (card) {
+                const slider = card.querySelector('.tiktok-media-slider');
+                const slides = card.querySelectorAll('.tiktok-slide');
+                const indicators = card.querySelectorAll('.tiktok-slide-indicator');
+                const currentSlide = parseInt(slider.dataset.currentSlide || 0);
+                
+                let newSlide;
+                if (diffX > 0) {
+                    newSlide = Math.max(0, currentSlide - 1);
+                } else {
+                    newSlide = Math.min(slides.length - 1, currentSlide + 1);
+                }
+                
+                if (newSlide !== currentSlide) {
+                    slider.style.transform = `translateX(-${newSlide * 100}%)`;
+                    slider.dataset.currentSlide = newSlide;
+                    
+                    indicators.forEach((ind, idx) => {
+                        ind.classList.toggle('active', idx === newSlide);
+                    });
+                    
+                    // Паузим видео на скрытых слайдах
+                    slides.forEach((slide, idx) => {
+                        const video = slide.querySelector('video');
+                        if (video) {
+                            if (idx === newSlide) {
+                                video.play();
+                            } else {
+                                video.pause();
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    });
+}
+
+function showTapHeartAnimation(x, y) {
+    const heart = document.createElement('div');
+    heart.className = 'tiktok-floating-heart';
+    heart.innerHTML = '❤️';
+    heart.style.left = `${x}px`;
+    heart.style.top = `${y}px`;
+    document.body.appendChild(heart);
+    setTimeout(() => heart.remove(), 1000);
+}
+
+// ============================================
+// ЗВУК
+// ============================================
+
+function handleSound(btn) {
+    tiktokState.isMuted = !tiktokState.isMuted;
+    
+    const icon = btn.querySelector('.tiktok-action-icon');
+    icon.textContent = tiktokState.isMuted ? '🔇' : '🔊';
+    
+    // Применяем ко всем видео
+    document.querySelectorAll('.tiktok-card video').forEach(video => {
+        video.muted = tiktokState.isMuted;
+    });
+}
+
+// ============================================
+// ШЕРИНГ
+// ============================================
+
+function handleShare(btn) {
+    const card = btn.closest('.tiktok-card');
+    const listingId = card.dataset.id;
+    const url = `${window.location.origin}/listing.html?id=${listingId}`;
+    
+    const modal = document.createElement('div');
+    modal.className = 'tiktok-share-modal';
+    modal.innerHTML = `
+        <div class="tiktok-share-title">Поделиться</div>
+        <div class="tiktok-share-options">
+            <button class="tiktok-share-option" data-platform="telegram">
+                <div class="tiktok-share-icon">📱</div>
+                <span class="tiktok-share-name">Telegram</span>
+            </button>
+            <button class="tiktok-share-option" data-platform="whatsapp">
+                <div class="tiktok-share-icon">💬</div>
+                <span class="tiktok-share-name">WhatsApp</span>
+            </button>
+            <button class="tiktok-share-option" data-platform="vk">
+                <div class="tiktok-share-icon">📘</div>
+                <span class="tiktok-share-name">VK</span>
+            </button>
+            <button class="tiktok-share-option" data-platform="copy">
+                <div class="tiktok-share-icon">🔗</div>
+                <span class="tiktok-share-name">Копировать</span>
+            </button>
+        </div>
+        <button class="tiktok-share-close">Закрыть</button>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelectorAll('.tiktok-share-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            const platform = opt.dataset.platform;
+            shareOnPlatform(platform, url, card);
+            modal.remove();
+        });
+    });
+    
+    modal.querySelector('.tiktok-share-close').addEventListener('click', () => modal.remove());
+}
+
+function shareOnPlatform(platform, url, card) {
+    const title = card.querySelector('.tiktok-title')?.textContent || '';
+    
+    let shareUrl;
+    switch (platform) {
+        case 'telegram':
+            shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+            break;
+        case 'whatsapp':
+            shareUrl = `https://wa.me/?text=${encodeURIComponent(title + ' ' + url)}`;
+            break;
+        case 'vk':
+            shareUrl = `https://vk.com/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`;
+            break;
+        case 'copy':
+            navigator.clipboard.writeText(url);
+            showToast('Ссылка скопирована', 'success');
+            return;
+    }
+    
+    if (shareUrl) window.open(shareUrl, '_blank');
+    
+    // Отправляем аналитику шеринга
+    fetch(`/api/v1/tiktok/${card.dataset.id}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform })
+    }).catch(e => console.error(e));
+}
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function formatPrice(price) {
+    return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderStars(rating) {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    let stars = '';
+    for (let i = 0; i < fullStars; i++) stars += '★';
+    if (halfStar) stars += '½';
+    for (let i = stars.length; i < 5; i++) stars += '☆';
+    return stars;
+}
+
+function generateHashtags(title, category) {
+    const words = title.toLowerCase().split(' ');
+    const hashtags = new Set();
+    
+    // Добавляем категорию
+    if (category) hashtags.add(`#${category.replace(/\s/g, '')}`);
+    
+    // Добавляем ключевые слова из названия
+    words.forEach(word => {
+        if (word.length > 3 && !['это', 'для', 'без', 'под'].includes(word)) {
+            hashtags.add(`#${word}`);
+        }
+    });
+    
+    return Array.from(hashtags).slice(0, 5).map(t => `<span class="tiktok-hashtag">${t}</span>`).join('');
+}
+
+function expandDescription(btn) {
+    const desc = btn.previousElementSibling;
+    desc.classList.toggle('expanded');
+    btn.textContent = desc.classList.contains('expanded') ? 'свернуть' : '... ещё';
+}
+
+function showLoadingIndicator() {
+    // Реализация индикатора загрузки
+}
+
+function hideLoadingIndicator() {
+    // Реализация
+}
+
+function showEmptyState() {
+    // Реализация пустого состояния
+}
+
+function showErrorState() {
+    // Реализация ошибки
+}
+
+function showToast(message, type) {
+    // Реализация тост-уведомления
+}
+
+function sendAnalytics(event, data) {
+    // Реализация аналитики
+}
+
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+            // Скролл вверх
+            tiktokContainer.scrollBy(0, -window.innerHeight);
+        } else if (e.key === 'ArrowDown') {
+            // Скролл вниз
+            tiktokContainer.scrollBy(0, window.innerHeight);
+        } else if (e.key === ' ' || e.key === 'Space') {
+            e.preventDefault();
+            const activeCard = document.querySelector(`.tiktok-card[data-index="${tiktokState.currentIndex}"]`);
+            const video = activeCard?.querySelector('video');
+            if (video) {
+                if (video.paused) video.play();
+                else video.pause();
+            }
+        }
+    });
+}
+
+// ============================================
+// ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ (ДЛЯ ВАС / ПОДПИСКИ)
+// ============================================
+
+async function switchFeedType(type) {
+    tiktokState.feedType = type;
+    tiktokState.currentFeed = [];
+    tiktokState.nextCursor = null;
+    tiktokState.hasMore = true;
+    tiktokContainer.innerHTML = '';
+    await loadFeed();
+}
+
+// ============================================
+// ЭКСПОРТ
+// ============================================
+
+window.initTikTokFeed = initTikTokFeed;
+window.switchFeedType = switchFeedType;

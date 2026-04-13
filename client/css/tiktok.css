@@ -1,0 +1,750 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/css/tiktok.css
+ * Описание: Стили для TikTok-ленты (вертикальный скролл, видео-плеер, кнопки, жесты)
+ */
+
+/* ============================================
+   КОНТЕЙНЕР ЛЕНТЫ
+   ============================================ */
+
+.tiktok-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #000000;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    z-index: 1000;
+}
+
+/* Скрываем скроллбар но оставляем функциональность */
+.tiktok-container::-webkit-scrollbar {
+    display: none;
+}
+
+.tiktok-container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* ============================================
+   КАРТОЧКА ОБЪЯВЛЕНИЯ
+   ============================================ */
+
+.tiktok-card {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    scroll-snap-align: start;
+    background: #000000;
+    overflow: hidden;
+}
+
+/* ============================================
+   МЕДИА КОНТЕЙНЕР (ФОТО/ВИДЕО)
+   ============================================ */
+
+.tiktok-media-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+}
+
+.tiktok-media-slider {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.3s ease-out;
+    cursor: grab;
+}
+
+.tiktok-media-slider:active {
+    cursor: grabbing;
+}
+
+.tiktok-slide {
+    min-width: 100%;
+    height: 100%;
+    position: relative;
+    background: #000000;
+}
+
+.tiktok-slide img,
+.tiktok-slide video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Для вертикальных видео */
+.tiktok-slide img.portrait,
+.tiktok-slide video.portrait {
+    object-fit: cover;
+}
+
+/* Для квадратных */
+.tiktok-slide img.square,
+.tiktok-slide video.square {
+    object-fit: cover;
+}
+
+/* Индикаторы слайдов */
+.tiktok-slide-indicators {
+    position: absolute;
+    bottom: 120px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    z-index: 15;
+}
+
+.tiktok-slide-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.5);
+    transition: all 0.3s ease;
+}
+
+.tiktok-slide-indicator.active {
+    width: 20px;
+    background: white;
+}
+
+/* ============================================
+   ПРАВАЯ ПАНЕЛЬ С КНОПКАМИ
+   ============================================ */
+
+.tiktok-actions {
+    position: absolute;
+    right: 12px;
+    bottom: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    z-index: 20;
+}
+
+.tiktok-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.tiktok-action-btn:active {
+    transform: scale(0.9);
+}
+
+.tiktok-action-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    border-radius: 50%;
+    font-size: 28px;
+    transition: all 0.3s ease;
+}
+
+.tiktok-action-btn:hover .tiktok-action-icon {
+    background: rgba(0, 0, 0, 0.7);
+    transform: scale(1.05);
+}
+
+.tiktok-action-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Кнопка лайка (активное состояние) */
+.tiktok-action-btn.liked .tiktok-action-icon {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.tiktok-action-btn.liked .tiktok-action-icon::before {
+    content: "❤️";
+    animation: likePop 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+/* Кнопка подписки */
+.tiktok-subscribe-btn {
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tiktok-subscribe-btn.subscribed {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.tiktok-subscribe-btn:hover {
+    transform: scale(1.05);
+}
+
+/* ============================================
+   НИЖНЯЯ ПАНЕЛЬ С ИНФОРМАЦИЕЙ
+   ============================================ */
+
+.tiktok-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 80px 30px 20px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+    color: white;
+    z-index: 15;
+}
+
+.tiktok-price {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--accent-primary);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.tiktok-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tiktok-description {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tiktok-description.expanded {
+    -webkit-line-clamp: unset;
+}
+
+.tiktok-description-more {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+/* Информация о продавце */
+.tiktok-seller {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.tiktok-seller-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent-primary);
+}
+
+.tiktok-seller-info {
+    flex: 1;
+}
+
+.tiktok-seller-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.tiktok-seller-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.tiktok-seller-rating .stars {
+    color: #fbbf24;
+}
+
+/* Хэштеги */
+.tiktok-hashtags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.tiktok-hashtag {
+    font-size: 12px;
+    color: var(--accent-primary);
+    background: rgba(16, 185, 129, 0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tiktok-hashtag:hover {
+    background: rgba(16, 185, 129, 0.4);
+}
+
+/* ============================================
+   АНИМАЦИЯ ПЛАВАЮЩЕГО СЕРДЕЧКА
+   ============================================ */
+
+.tiktok-floating-heart {
+    position: fixed;
+    font-size: 48px;
+    pointer-events: none;
+    z-index: 1000;
+    animation: floatUp 1s ease-out forwards;
+}
+
+@keyframes floatUp {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-150px) scale(1.5);
+    }
+}
+
+/* ============================================
+   ПЛЕЕР (КАСТОМНЫЙ)
+   ============================================ */
+
+.tiktok-video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.tiktok-video-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    padding: 8px 16px;
+    border-radius: 30px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 25;
+}
+
+.tiktok-media-container:hover .tiktok-video-controls {
+    opacity: 1;
+}
+
+.tiktok-video-progress {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.tiktok-video-progress::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    cursor: pointer;
+}
+
+.tiktok-video-time {
+    font-size: 12px;
+    color: white;
+}
+
+/* ============================================
+   ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ
+   ============================================ */
+
+.tiktok-mode-switch {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    padding: 6px;
+    border-radius: 44px;
+    z-index: 1001;
+}
+
+.tiktok-mode-btn {
+    padding: 8px 24px;
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tiktok-mode-btn.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+/* ============================================
+   КОНТЕКСТНОЕ МЕНЮ (ДОЛГИЙ ТАП)
+   ============================================ */
+
+.tiktok-context-menu {
+    position: fixed;
+    background: rgba(28, 28, 42, 0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 8px 0;
+    min-width: 200px;
+    z-index: 2000;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.2s ease;
+}
+
+.tiktok-context-menu button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.tiktok-context-menu button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   ПУСТОЕ СОСТОЯНИЕ ЛЕНТЫ
+   ============================================ */
+
+.tiktok-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: white;
+    text-align: center;
+    padding: 20px;
+}
+
+.tiktok-empty-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+    opacity: 0.7;
+}
+
+.tiktok-empty h3 {
+    font-size: 24px;
+    margin-bottom: 12px;
+}
+
+.tiktok-empty p {
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 24px;
+}
+
+.tiktok-empty button {
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 44px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ============================================
+   ЗАГРУЗКА (Скелетон)
+   ============================================ */
+
+.tiktok-skeleton {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    background: #0a0a0a;
+}
+
+.tiktok-skeleton::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+/* ============================================
+   ИНДИКАТОР ЗАГРУЗКИ
+   ============================================ */
+
+.tiktok-loading {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    padding: 12px 24px;
+    border-radius: 44px;
+    color: white;
+    font-size: 14px;
+    z-index: 1002;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tiktok-loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* ============================================
+   МОДАЛЬНОЕ ОКНО (ПОДЕЛИТЬСЯ)
+   ============================================ */
+
+.tiktok-share-modal {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border-radius: 24px 24px 0 0;
+    padding: 24px;
+    z-index: 2000;
+    animation: slideInUp 0.3s ease;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.tiktok-share-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.tiktok-share-options {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.tiktok-share-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    border-radius: 16px;
+    transition: background 0.2s ease;
+}
+
+.tiktok-share-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tiktok-share-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    font-size: 28px;
+}
+
+.tiktok-share-name {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.tiktok-share-close {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 44px;
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* ============================================
+   АДАПТИВНОСТЬ
+   ============================================ */
+
+/* Планшеты */
+@media (max-width: 768px) {
+    .tiktok-price {
+        font-size: 24px;
+    }
+    
+    .tiktok-title {
+        font-size: 16px;
+    }
+    
+    .tiktok-action-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+    }
+    
+    .tiktok-actions {
+        right: 8px;
+        gap: 16px;
+    }
+    
+    .tiktok-info {
+        padding: 16px 70px 20px 16px;
+    }
+}
+
+/* Телефоны */
+@media (max-width: 480px) {
+    .tiktok-mode-switch {
+        top: 60px;
+    }
+    
+    .tiktok-mode-btn {
+        padding: 6px 16px;
+        font-size: 12px;
+    }
+    
+    .tiktok-price {
+        font-size: 20px;
+    }
+    
+    .tiktok-title {
+        font-size: 14px;
+    }
+    
+    .tiktok-description {
+        font-size: 12px;
+    }
+    
+    .tiktok-action-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+    }
+    
+    .tiktok-seller-avatar {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .tiktok-seller-name {
+        font-size: 13px;
+    }
+    
+    .tiktok-subscribe-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+    }
+}
+
+/* Ландшафтная ориентация */
+@media (orientation: landscape) {
+    .tiktok-info {
+        padding: 12px 70px 16px 16px;
+    }
+    
+    .tiktok-price {
+        font-size: 20px;
+    }
+    
+    .tiktok-title {
+        font-size: 14px;
+    }
+    
+    .tiktok-seller {
+        margin-top: 8px;
+    }
+    
+    .tiktok-slide-indicators {
+        bottom: 80px;
+    }
+    
+    .tiktok-actions {
+        bottom: 80px;
+    }
+}

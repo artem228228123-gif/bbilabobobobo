@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>AЙДA — Премиум доска объявлений</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ========== APPLE ПРЕМИУМ СИСТЕМА ========== */
+        :root {
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f9f9fb;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #8e8e93;
+            --border: rgba(0, 0, 0, 0.06);
+            --border-focus: rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border);
+            --shadow-lg: 0 20px 38px -10px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+            --shadow-xl: 0 30px 48px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--border);
+            --accent: #007aff;
+            --accent-grad: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(0,122,255,0.15) 0%, rgba(88,86,214,0.15) 100%);
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --blur-bg: rgba(255, 255, 255, 0.72);
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --radius-full: 100px;
+            --transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            --transition-bounce: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #000000;
+            --bg-secondary: #1c1c1e;
+            --bg-tertiary: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-tertiary: #636366;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-focus: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+            --shadow-lg: 0 20px 38px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border);
+            --card-bg: rgba(28, 28, 30, 0.92);
+            --blur-bg: rgba(28, 28, 30, 0.78);
+            --accent: #0a84ff;
+            --accent-grad: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+            --accent-grad-light: linear-gradient(135deg, rgba(10,132,255,0.2) 0%, rgba(94,92,230,0.2) 100%);
+        }
+
+        body {
+            font-family: -apple-system, 'Inter', system-ui, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.4s ease, color 0.3s ease;
+            padding-bottom: 70px;
+            scroll-behavior: smooth;
+        }
+
+        /* ========== ХЕДЕР ========== */
+        .header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(24px) saturate(180%);
+            background: var(--blur-bg);
+            border-bottom: 0.5px solid var(--border);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .search-wrapper {
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .search-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            border: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            transition: var(--transition);
+        }
+
+        .search-container:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 8px var(--spacing-sm);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .search-btn, .photo-search-btn {
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: var(--radius-full);
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .search-btn:hover, .photo-search-btn:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .city-selector {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 8px var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+        }
+
+        .city-selector:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            position: relative;
+        }
+
+        .header-action {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 6px;
+            transition: var(--transition-bounce);
+            position: relative;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-action:hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ff3b30;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 20px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .add-listing-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .add-listing-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .profile-btn {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: var(--transition-bounce);
+        }
+
+        .profile-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+        }
+
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition-bounce);
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        /* ========== КАТЕГОРИИ ПРЕМИУМ ========== */
+        .categories-section {
+            max-width: 1400px;
+            margin: var(--spacing-xl) auto 0;
+            padding: 0 var(--spacing-lg);
+        }
+
+        .all-categories-btn {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 10px 24px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: var(--spacing-lg);
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .all-categories-btn:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        .categories-grid {
+            display: flex;
+            gap: var(--spacing-xl);
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+
+        .category-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-sm);
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            padding: var(--spacing-xs);
+            border-radius: var(--radius-lg);
+        }
+
+        .category-item:hover {
+            transform: translateY(-6px);
+        }
+
+        .category-item.active {
+            transform: translateY(-2px);
+        }
+
+        .category-square {
+            width: 80px;
+            height: 80px;
+            background: var(--accent-grad);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            border: none;
+            transition: var(--transition-bounce);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-square::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            pointer-events: none;
+        }
+
+        .category-square::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            transition: left 0.5s ease;
+            pointer-events: none;
+        }
+
+        .category-item:hover .category-square::after {
+            left: 100%;
+        }
+
+        .category-item:hover .category-square {
+            transform: scale(1.05);
+            box-shadow: 0 12px 28px rgba(0, 122, 255, 0.4);
+        }
+
+        .category-item.active .category-square {
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.4), 0 8px 24px rgba(0, 122, 255, 0.5);
+            transform: scale(1.02);
+        }
+
+        .category-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .category-item:hover .category-name,
+        .category-item.active .category-name {
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-weight: 600;
+        }
+
+        /* ========== ПАНЕЛЬ УПРАВЛЕНИЯ ========== */
+        .controls-panel {
+            max-width: 1400px;
+            margin: var(--spacing-xl) auto;
+            padding: 0 var(--spacing-lg);
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .view-modes {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-tertiary);
+            padding: 4px;
+            border-radius: var(--radius-full);
+            border: 0.5px solid var(--border);
+        }
+
+        .view-mode-btn {
+            background: transparent;
+            border: none;
+            padding: 7px 22px;
+            border-radius: var(--radius-full);
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition-bounce);
+            font-size: 0.85rem;
+        }
+
+        .view-mode-btn.active {
+            background: var(--accent-grad);
+            color: white;
+            box-shadow: 0 2px 12px rgba(0, 122, 255, 0.4);
+            transform: scale(1.02);
+        }
+
+        .view-mode-btn:not(.active):hover {
+            background: var(--accent-grad-light);
+            color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .seller-filter {
+            display: flex;
+            gap: 8px;
+        }
+
+        .seller-filter-btn {
+            background: transparent;
+            border: 0.5px solid var(--border);
+            padding: 7px 18px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+            font-size: 0.85rem;
+        }
+
+        .seller-filter-btn.active {
+            background: var(--accent-grad);
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 2px 12px rgba(0, 122, 255, 0.4);
+            transform: scale(1.02);
+        }
+
+        .seller-filter-btn:not(.active):hover {
+            background: var(--accent-grad-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .filters-toggle {
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            padding: 7px 22px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: var(--transition-bounce);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .filters-toggle:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            background: var(--accent-grad-light);
+            color: var(--accent);
+        }
+
+        /* ========== СЕТКА ========== */
+        .grid-view {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-lg) var(--spacing-2xl);
+        }
+
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-xl);
+        }
+
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-xl);
+        }
+
+        .skeleton-card {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            height: 340px;
+            animation: pulse 1.5s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        .listing-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition-bounce);
+            border: 0.5px solid var(--border);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .listing-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .listing-card:hover::before {
+            left: 100%;
+        }
+
+        .listing-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .card-image {
+            position: relative;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .listing-card:hover .card-image img {
+            transform: scale(1.05);
+        }
+
+        .card-badge {
+            position: absolute;
+            top: var(--spacing-sm);
+            left: var(--spacing-sm);
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            z-index: 2;
+        }
+
+        .card-content {
+            padding: var(--spacing-md);
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .card-price {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 8px 0;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        .like-btn-grid {
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .like-btn-grid:hover {
+            color: #ff3b30;
+            transform: scale(1.1);
+        }
+
+        /* ========== TIKTOK ЛЕНТА ========== */
+        .tiktok-view {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-md) var(--spacing-2xl);
+        }
+
+        .tiktok-container {
+            scroll-snap-type: y mandatory;
+            height: 85vh;
+            overflow-y: scroll;
+            border-radius: var(--radius-xl);
+            scrollbar-width: thin;
+        }
+
+        .tiktok-skeleton {
+            height: 80vh;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-xl);
+            animation: pulse 1.5s ease-in-out infinite;
+            margin-bottom: var(--spacing-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tiktok-skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        .tiktok-card {
+            scroll-snap-align: start;
+            height: 80vh;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            margin-bottom: var(--spacing-lg);
+            box-shadow: var(--shadow-lg);
+            border: 0.5px solid var(--border);
+            position: relative;
+        }
+
+        .tiktok-media {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tiktok-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.3);
+            z-index: 10;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--accent);
+            transition: width 5s linear;
+        }
+
+        .tiktok-info-left {
+            position: absolute;
+            bottom: var(--spacing-lg);
+            left: var(--spacing-md);
+            right: 80px;
+            color: white;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+
+        .seller-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: var(--spacing-sm);
+            cursor: pointer;
+        }
+
+        .seller-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+            object-fit: cover;
+        }
+
+        .seller-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .listing-title-tiktok {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 6px 0;
+        }
+
+        .listing-desc {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin: 4px 0;
+        }
+
+        .price-tiktok {
+            font-size: 1.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff, var(--accent));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 8px 0;
+        }
+
+        .tiktok-actions-right {
+            position: absolute;
+            bottom: var(--spacing-lg);
+            right: var(--spacing-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .action-icon-btn {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(8px);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            color: #e5e5ea;
+            font-size: 1.1rem;
+            gap: 2px;
+        }
+
+        .action-icon-btn i {
+            font-size: 1.1rem;
+        }
+
+        .action-icon-btn span {
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        .action-icon-btn:hover {
+            transform: scale(1.12);
+            background: var(--accent-grad);
+            color: white;
+        }
+
+        .like-animation {
+            animation: likePop 0.4s cubic-bezier(0.2, 1.3, 0.4, 1);
+        }
+
+        @keyframes likePop {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.5); color: #ff3b30; }
+            100% { transform: scale(1); }
+        }
+
+        /* ========== КАРТА ========== */
+        .map-view {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-lg) var(--spacing-2xl);
+        }
+
+        .map-container {
+            height: 65vh;
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            border: 0.5px solid var(--border);
+        }
+
+        /* ========== BOTTOM NAVIGATION ========== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--blur-bg);
+            backdrop-filter: blur(24px);
+            border-top: 0.5px solid var(--border);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            display: none;
+            justify-content: space-around;
+            z-index: 99;
+        }
+
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            position: relative;
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+        }
+
+        .bottom-nav-item span {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .bottom-nav-item.active {
+            color: var(--accent);
+            background: var(--accent-grad-light);
+        }
+
+        .bottom-nav-item:hover:not(.active) {
+            color: var(--accent);
+            background: var(--accent-grad-light);
+            transform: translateY(-2px);
+        }
+
+        /* ========== КНОПКА ВВЕРХ ========== */
+        .scroll-top-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: var(--accent-grad);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-md);
+            z-index: 98;
+        }
+
+        .scroll-top-btn.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top-btn:hover {
+            transform: scale(1.08);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* ========== МОДАЛКА ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 500px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            border: 0.5px solid var(--border);
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-image {
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+        }
+
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .modal-price {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: var(--spacing-sm) 0;
+        }
+
+        .modal-desc {
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: var(--spacing-md);
+            right: var(--spacing-md);
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+        }
+
+        .modal-close:hover {
+            transform: scale(1.1);
+            background: var(--accent);
+        }
+
+        .share-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .share-btn {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 0.5px solid var(--border);
+            padding: 10px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: var(--transition-bounce);
+            color: var(--text-primary);
+        }
+
+        .share-btn:hover {
+            background: var(--accent-grad);
+            color: white;
+            border-color: transparent;
+            transform: scale(1.02);
+        }
+
+        .contact-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 14px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: var(--spacing-md);
+            transition: var(--transition-bounce);
+        }
+
+        .contact-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ========== ПУСТОЕ СОСТОЯНИЕ ========== */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-2xl);
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.5;
+        }
+
+        /* ========== ОНБОРДИНГ ========== */
+        .onboarding {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+            text-align: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .onboarding.hide {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .onboarding-step {
+            max-width: 300px;
+        }
+
+        .onboarding-icon {
+            font-size: 5rem;
+            background: var(--accent-grad);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .onboarding-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .onboarding-desc {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xl);
+            line-height: 1.5;
+        }
+
+        .onboarding-btn {
+            background: var(--accent-grad);
+            border: none;
+            padding: 14px 32px;
+            border-radius: var(--radius-full);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+        }
+
+        .onboarding-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .onboarding-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: var(--spacing-lg);
+        }
+
+        .onboarding-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--border-focus);
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .onboarding-dot.active {
+            background: var(--accent);
+            width: 20px;
+            border-radius: 10px;
+        }
+
+        /* ========== АДАПТИВ ========== */
+        @media (max-width: 768px) {
+            .header-container { gap: var(--spacing-sm); }
+            .add-text { display: none; }
+            .add-listing-btn { padding: 6px 14px; }
+            .categories-grid { gap: var(--spacing-md); justify-content: center; }
+            .view-mode-btn, .seller-filter-btn, .filters-toggle { padding: 5px 12px; font-size: 0.7rem; }
+            .bottom-nav { display: flex; }
+            body { padding-bottom: 70px; }
+            .scroll-top-btn { bottom: 80px; }
+            .listings-grid { gap: var(--spacing-md); }
+        }
+
+        @media (min-width: 1024px) {
+            .listings-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ОНБОРДИНГ -->
+    <div id="onboarding" class="onboarding">
+        <div class="onboarding-step">
+            <div class="onboarding-icon"><i class="fas fa-store"></i></div>
+            <h2 class="onboarding-title">Добро пожаловать в AЙДA</h2>
+            <p class="onboarding-desc">Премиальная доска объявлений в стиле Apple. Покупайте и продавайте с удовольствием.</p>
+            <button class="onboarding-btn" id="startBtn">Начать</a>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="header-container">
+            <a href="/" class="logo">AЙДA</a>
+            <div class="search-wrapper">
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Поиск...">
+                    <button class="search-btn"><i class="fas fa-search"></i></a>
+                    <button class="photo-search-btn"><i class="fas fa-camera"></i></a>
+                </div>
+            </div>
+            <button class="city-selector"><i class="fas fa-map-marker-alt"></i> Москва <i class="fas fa-chevron-down"></i></a>
+            <div class="header-actions">
+                <a href="/" class="header-action"><i class="far fa-heart"></i><span class="badge">3</span></a>
+                <a href="/" class="header-action"><i class="far fa-bell"></i><span class="badge">5</span></a>
+                <a href="/" class="header-action"><i class="far fa-comment"></i><span class="badge">2</span></a>
+                <a href="/add-listing.html" class="add-listing-btn"><i class="fas fa-plus"></i> <span class="add-text">Разместить</span></a>
+                <button class="profile-btn"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop" class="profile-avatar"></a>
+                <button id="themeToggle" class="theme-toggle"><i class="fas fa-moon"></i></a>
+            </div>
+        </div>
+    </header>
+
+    <div class="categories-section">
+        <button class="all-categories-btn"><i class="fas fa-folder"></i> Все категории <i class="fas fa-chevron-down"></i></a>
+        <div class="categories-grid" id="categoriesGrid">
+            <div class="category-item" data-category="auto"><div class="category-square"><i class="fas fa-car"></i></div><span class="category-name">Авто</span></div>
+            <div class="category-item" data-category="realty"><div class="category-square"><i class="fas fa-home"></i></div><span class="category-name">Недвижимость</span></div>
+            <div class="category-item" data-category="work"><div class="category-square"><i class="fas fa-briefcase"></i></div><span class="category-name">Работа</span></div>
+            <div class="category-item" data-category="services"><div class="category-square"><i class="fas fa-wrench"></i></div><span class="category-name">Услуги</span></div>
+            <div class="category-item" data-category="personal"><div class="category-square"><i class="fas fa-tshirt"></i></div><span class="category-name">Личные вещи</span></div>
+            <div class="category-item" data-category="home"><div class="category-square"><i class="fas fa-couch"></i></div><span class="category-name">Для дома</span></div>
+            <div class="category-item" data-category="electronics"><div class="category-square"><i class="fas fa-mobile-alt"></i></div><span class="category-name">Электроника</span></div>
+            <div class="category-item" data-category="hobby"><div class="category-square"><i class="fas fa-gamepad"></i></div><span class="category-name">Хобби</span></div>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <div class="view-modes">
+            <button class="view-mode-btn active" data-mode="grid"><i class="fas fa-th"></i> Сетка</a>
+            <button class="view-mode-btn" data-mode="tiktok"><i class="fas fa-play-circle"></i> Лента</a>
+            <button class="view-mode-btn" data-mode="map"><i class="fas fa-map"></i> Карта</a>
+        </div>
+        <div class="seller-filter">
+            <button class="seller-filter-btn active" data-seller="all">Все</a>
+            <button class="seller-filter-btn" data-seller="private">Частный</a>
+            <button class="seller-filter-btn" data-seller="company">Компании</a>
+        </div>
+        <button class="filters-toggle"><i class="fas fa-sliders-h"></i> Фильтры <i class="fas fa-chevron-down"></i></a>
+    </div>
+
+    <div id="gridView" class="grid-view">
+        <div id="skeletonGrid" class="skeleton-grid">
+            <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+            <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+        </div>
+        <div id="listingsGrid" class="listings-grid" style="display: none;"></div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="fas fa-box-open"></i>
+            <h3>Объявлений не найдено</h3>
+            <p>Попробуйте изменить параметры поиска</p>
+        </div>
+        <div id="loadingTrigger" style="height: 20px;"></div>
+    </div>
+
+    <div id="tiktokView" class="tiktok-view" style="display: none;">
+        <div id="tiktokSkeleton" class="tiktok-skeleton" style="display: none;"></div>
+        <div class="tiktok-container" id="tiktokContainer"></div>
+    </div>
+
+    <div id="mapView" class="map-view" style="display: none;">
+        <div id="map" class="map-container"></div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="/" class="bottom-nav-item active"><i class="fas fa-home"></i><span>Главная</span></a>
+        <a href="/favorites.html" class="bottom-nav-item"><i class="far fa-heart"></i><span>Избранное</span></a>
+        <a href="/chats.html" class="bottom-nav-item"><i class="far fa-comment"></i><span>Чаты</span></a>
+        <a href="/profile.html" class="bottom-nav-item"><i class="far fa-user"></i><span>Профиль</span></a>
+    </div>
+
+    <button id="scrollTopBtn" class="scroll-top-btn"><i class="fas fa-arrow-up"></i></a>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close"><i class="fas fa-times"></i></a>
+            <img id="modalImg" class="modal-image" src="">
+            <div class="modal-body">
+                <h2 id="modalTitle" class="modal-title"></h2>
+                <div id="modalPrice" class="modal-price"></div>
+                <p id="modalDesc" class="modal-desc"></p>
+                <div class="share-buttons">
+                    <button class="share-btn" id="shareTelegram"><i class="fab fa-telegram"></i> Telegram</a>
+                    <button class="share-btn" id="shareWhatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+                </div>
+                <button class="contact-btn"><i class="fab fa-telegram"></i> Написать продавцу</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Онбординг
+        if (!localStorage.getItem('onboardingShown')) {
+            localStorage.setItem('onboardingShown', 'true');
+        } else {
+            document.getElementById('onboarding').classList.add('hide');
+        }
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('onboarding').classList.add('hide');
+        });
+
+        // Тёмная тема
+        const themeToggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark') root.setAttribute('data-theme', 'dark');
+        themeToggle.addEventListener('click', () => {
+            if (root.getAttribute('data-theme') === 'dark') {
+                root.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                root.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        });
+
+        // Данные
+        let allListings = [
+            { id: 1, title: "iPhone 15 Pro", price: 89990, city: "Москва", likes: 124, comments: 34, reposts: 12, image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&h=450&fit=crop", seller: "apple_shop", sellerAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop", desc: "Отличное состояние, полный комплект, гарантия 1 год.", category: "electronics", type: "private" },
+            { id: 2, title: "MacBook Pro M3", price: 189990, city: "СПб", likes: 89, comments: 23, reposts: 7, image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&h=450&fit=crop", seller: "tech_store", sellerAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop", desc: "Новый, чип M3, 16GB RAM, 512GB SSD", category: "electronics", type: "company" },
+            { id: 3, title: "Квартира-студия", price: 12500000, city: "Москва", likes: 56, comments: 12, reposts: 4, image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&h=450&fit=crop", seller: "realty_pro", sellerAvatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop", desc: "Рядом метро, евроремонт, вид на город", category: "realty", type: "private" },
+            { id: 4, title: "Sony PS5", price: 59990, city: "Казань", likes: 234, comments: 67, reposts: 23, image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&h=450&fit=crop", seller: "game_store", sellerAvatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=80&h=80&fit=crop", desc: "Новая, 2 контроллера", category: "hobby", type: "company" },
+            { id: 5, title: "Велосипед Author", price: 45990, city: "Новосибирск", likes: 45, comments: 8, reposts: 3, image: "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=600&h=450&fit=crop", seller: "velo_shop", sellerAvatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=80&h=80&fit=crop", desc: "Горный велосипед, отличное состояние", category: "hobby", type: "private" },
+            { id: 6, title: "Репетитор", price: 1500, city: "Москва", likes: 23, comments: 5, reposts: 2, image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600&h=450&fit=crop", seller: "teacher_pro", sellerAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop", desc: "Репетитор по математике", category: "services", type: "private" },
+        ];
+
+        let currentCategory = null;
+        let currentSellerType = "all";
+        let currentPage = 1;
+        let isLoading = false;
+        let hasMore = true;
+        const ITEMS_PER_PAGE = 6;
+
+        function filterListings() {
+            let filtered = [...allListings];
+            if (currentCategory) filtered = filtered.filter(item => item.category === currentCategory);
+            if (currentSellerType !== "all") filtered = filtered.filter(item => item.type === currentSellerType);
+            return filtered;
+        }
+
+        function loadMoreItems() {
+            if (isLoading || !hasMore) return;
+            isLoading = true;
+            const filtered = filterListings();
+            const start = (currentPage - 1) * ITEMS_PER_PAGE;
+            const newItems = filtered.slice(start, start + ITEMS_PER_PAGE);
+            if (newItems.length === 0) {
+                hasMore = false;
+                isLoading = false;
+                if (document.getElementById('listingsGrid').children.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                }
+                return;
+            }
+            document.getElementById('emptyState').style.display = 'none';
+            setTimeout(() => {
+                const container = document.getElementById('listingsGrid');
+                newItems.forEach(item => {
+                    container.insertAdjacentHTML('beforeend', `
+                        <div class="listing-card" data-id="${item.id}">
+                            <div class="card-image"><img src="${item.image}" loading="lazy"></div>
+                            <div class="card-content">
+                                <h3 class="card-title">${item.title}</h3>
+                                <div class="card-price">${item.price.toLocaleString()} ₽</div>
+                                <div class="card-footer"><span><i class="fas fa-map-marker-alt"></i> ${item.city}</span><span class="like-btn-grid" data-id="${item.id}"><i class="far fa-heart"></i> ${item.likes}</span></div>
+                            </div>
+                        </div>
+                    `);
+                });
+                attachCardListeners();
+                attachGridLikeListeners();
+                currentPage++;
+                isLoading = false;
+            }, 300);
+        }
+
+        function resetAndLoad() {
+            currentPage = 1;
+            hasMore = true;
+            document.getElementById('listingsGrid').innerHTML = '';
+            loadMoreItems();
+        }
+
+        function animateLike(el) {
+            el.classList.add('like-animation');
+            setTimeout(() => el.classList.remove('like-animation'), 400);
+        }
+
+        function attachGridLikeListeners() {
+            document.querySelectorAll('.like-btn-grid').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    animateLike(btn);
+                    const id = parseInt(btn.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) {
+                        item.likes++;
+                        btn.innerHTML = `<i class="fas fa-heart" style="color: #ff3b30;"></i> ${item.likes}`;
+                    }
+                };
+            });
+        }
+
+        // Категории
+        document.querySelectorAll('.category-item').forEach(cat => {
+            cat.onclick = () => {
+                const category = cat.dataset.category;
+                if (currentCategory === category) {
+                    currentCategory = null;
+                    cat.classList.remove('active');
+                } else {
+                    document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+                    cat.classList.add('active');
+                    currentCategory = category;
+                }
+                resetAndLoad();
+                if (document.getElementById('tiktokView').style.display !== 'none') renderTikTok();
+            };
+        });
+
+        // Фильтры продавца
+        document.querySelectorAll('.seller-filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.seller-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentSellerType = btn.dataset.seller;
+                resetAndLoad();
+                if (document.getElementById('tiktokView').style.display !== 'none') renderTikTok();
+            };
+        });
+
+        function showSkeleton(show) {
+            document.getElementById('skeletonGrid').style.display = show ? 'grid' : 'none';
+            document.getElementById('listingsGrid').style.display = show ? 'none' : 'grid';
+        }
+
+        function renderGrid() {
+            showSkeleton(true);
+            setTimeout(() => {
+                resetAndLoad();
+                showSkeleton(false);
+            }, 500);
+        }
+
+        function renderTikTok() {
+            const container = document.getElementById('tiktokContainer');
+            const skeleton = document.getElementById('tiktokSkeleton');
+            skeleton.style.display = 'block';
+            container.style.display = 'none';
+            setTimeout(() => {
+                const filtered = filterListings();
+                if (filtered.length === 0) {
+                    skeleton.style.display = 'none';
+                    container.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><h3>Объявлений не найдено</h3></div>`;
+                    container.style.display = 'block';
+                    return;
+                }
+                container.innerHTML = filtered.map((item, idx) => `
+                    <div class="tiktok-card" data-id="${item.id}">
+                        <div class="progress-bar"><div class="progress-fill" id="progress-${idx}"></div></div>
+                        <div class="tiktok-media"><img src="${item.image}"></div>
+                        <div class="tiktok-info-left">
+                            <div class="seller-profile"><img src="${item.sellerAvatar}" class="seller-avatar"><div class="seller-name">${item.seller}</div></div>
+                            <div class="listing-title-tiktok">${item.title}</div>
+                            <div class="listing-desc">${item.desc.substring(0, 80)}...</div>
+                            <div class="price-tiktok">${item.price.toLocaleString()} ₽</div>
+                        </div>
+                        <div class="tiktok-actions-right">
+                            <div class="action-icon-btn like-tiktok-btn" data-id="${item.id}"><i class="far fa-heart"></i><span>${item.likes}</span></div>
+                            <div class="action-icon-btn"><i class="far fa-comment"></i><span>${item.comments}</span></div>
+                            <div class="action-icon-btn"><i class="fas fa-retweet"></i><span>${item.reposts}</span></div>
+                            <div class="action-icon-btn share-tiktok-btn" data-id="${item.id}"><i class="fas fa-share-alt"></i><span></span></div>
+                            <div class="action-icon-btn"><i class="fas fa-location-arrow"></i><span></span></div>
+                        </div>
+                    </div>
+                `).join('');
+                skeleton.style.display = 'none';
+                container.style.display = 'block';
+                setTimeout(() => document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '100%'), 100);
+                attachTikTokLikeListeners();
+                attachTikTokShareListeners();
+                attachTikTokCardListeners();
+            }, 500);
+        }
+
+        function attachTikTokLikeListeners() {
+            document.querySelectorAll('.like-tiktok-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    animateLike(btn);
+                    const id = parseInt(btn.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) {
+                        item.likes++;
+                        btn.innerHTML = `<i class="fas fa-heart" style="color: #ff3b30;"></i><span>${item.likes}</span>`;
+                    }
+                };
+            });
+        }
+
+        function attachTikTokShareListeners() {
+            document.querySelectorAll('.share-tiktok-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item && navigator.share) {
+                        navigator.share({ title: item.title, text: `${item.title} - ${item.price.toLocaleString()} ₽`, url: `https://aida.ru/listing/${item.id}` });
+                    }
+                };
+            });
+        }
+
+        function attachTikTokCardListeners() {
+            document.querySelectorAll('.tiktok-card').forEach(card => {
+                card.onclick = () => {
+                    const id = parseInt(card.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) showModal(item);
+                };
+            });
+        }
+
+        function attachCardListeners() {
+            document.querySelectorAll('.listing-card').forEach(card => {
+                card.onclick = () => {
+                    const id = parseInt(card.dataset.id);
+                    const item = allListings.find(l => l.id === id);
+                    if (item) showModal(item);
+                };
+            });
+        }
+
+        let currentShareItem = null;
+        function showModal(item) {
+            currentShareItem = item;
+            document.getElementById('modalImg').src = item.image;
+            document.getElementById('modalTitle').innerText = item.title;
+            document.getElementById('modalPrice').innerText = `${item.price.toLocaleString()} ₽`;
+            document.getElementById('modalDesc').innerText = item.desc;
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        document.getElementById('shareTelegram').onclick = () => {
+            if (currentShareItem) {
+                const text = `${currentShareItem.title} - ${currentShareItem.price.toLocaleString()} ₽`;
+                const url = `https://t.me/share/url?url=${encodeURIComponent(`https://aida.ru/listing/${currentShareItem.id}`)}&text=${encodeURIComponent(text)}`;
+                window.open(url, '_blank');
+            }
+        };
+        document.getElementById('shareWhatsapp').onclick = () => {
+            if (currentShareItem) {
+                const text = `${currentShareItem.title} - ${currentShareItem.price.toLocaleString()} ₽ https://aida.ru/listing/${currentShareItem.id}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            }
+        };
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.onclick = () => document.getElementById('detailModal').classList.remove('active');
+        });
+        document.getElementById('detailModal').onclick = (e) => {
+            if (e.target === document.getElementById('detailModal')) document.getElementById('detailModal').classList.remove('active');
+        };
+
+        // Переключение режимов
+        const gridView = document.getElementById('gridView');
+        const tiktokView = document.getElementById('tiktokView');
+        const mapView = document.getElementById('mapView');
+        const modeBtns = document.querySelectorAll('.view-mode-btn');
+        function switchMode(mode) {
+            gridView.style.display = 'none';
+            tiktokView.style.display = 'none';
+            mapView.style.display = 'none';
+            if (mode === 'grid') { gridView.style.display = 'block'; if (!document.getElementById('listingsGrid').children.length) renderGrid(); }
+            else if (mode === 'tiktok') { tiktokView.style.display = 'block'; renderTikTok(); }
+            else if (mode === 'map') { mapView.style.display = 'block'; initMap(); }
+        }
+        modeBtns.forEach(btn => {
+            btn.onclick = () => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                switchMode(btn.dataset.mode);
+            };
+        });
+
+        // Кнопка вверх
+        const scrollBtn = document.getElementById('scrollTopBtn');
+        window.onscroll = () => {
+            if (window.scrollY > 300) scrollBtn.classList.add('visible');
+            else scrollBtn.classList.remove('visible');
+        };
+        scrollBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Infinite scroll
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !isLoading && hasMore) loadMoreItems();
+        }, { threshold: 0.1 });
+        observer.observe(document.getElementById('loadingTrigger'));
+
+        // Карта
+        let map = null;
+        function initMap() {
+            if (map) return;
+            setTimeout(() => {
+                const container = document.getElementById('map');
+                if (!container || container.innerHTML) return;
+                map = L.map('map').setView([55.751244, 37.618423], 12);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM' }).addTo(map);
+                allListings.forEach(item => {
+                    const lat = 55.751244 + (Math.random() - 0.5) * 0.15;
+                    const lng = 37.618423 + (Math.random() - 0.5) * 0.15;
+                    L.marker([lat, lng]).addTo(map).bindPopup(`${item.title}<br>${item.price.toLocaleString()} ₽`);
+                });
+            }, 100);
+        }
+
+        renderGrid();
+    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>

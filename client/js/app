@@ -1,0 +1,812 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/app.js
+ * Описание: Главный JavaScript файл (инициализация, тема, PWA, WebSocket, глобальные функции)
+ */
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+
+window.AIDA = {
+    // Состояние приложения
+    state: {
+        user: null,
+        token: localStorage.getItem('token'),
+        theme: localStorage.getItem('theme') || 'light',
+        isOnline: navigator.onLine,
+        socket: null,
+        unreadCount: 0,
+        notifications: []
+    },
+    
+    // Конфигурация
+    config: {
+        apiUrl: window.location.origin + '/api/v1',
+        wsUrl: window.location.origin.replace('http', 'ws'),
+        appName: 'АЙДА',
+        version: '3.0.0'
+    },
+    
+    // Контейнеры для DOM элементов
+    elements: {},
+    
+    // Таймеры
+    timers: {}
+};
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 AIDA v3.0 ULTRA загружен');
+    
+    // Инициализация темы
+    initTheme();
+    
+    // Инициализация Service Worker (PWA)
+    initServiceWorker();
+    
+    // Проверка авторизации
+    await checkAuth();
+    
+    // Инициализация WebSocket
+    initWebSocket();
+    
+    // Инициализация UI компонентов
+    initUIComponents();
+    
+    // Инициализация глобальных обработчиков
+    initGlobalHandlers();
+    
+    // Проверка онлайн статуса
+    initOnlineStatus();
+    
+    // Загрузка уведомлений
+    if (window.AIDA.state.user) {
+        loadNotifications();
+    }
+    
+    // Инициализация страницы
+    initCurrentPage();
+});
+
+// ============================================
+// ТЕМА (СВЕТЛАЯ/ТЁМНАЯ)
+// ============================================
+
+function initTheme() {
+    const theme = window.AIDA.state.theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    // Кнопка переключения темы
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+        themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = window.AIDA.state.theme;
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    window.AIDA.state.theme = newTheme;
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    }
+    
+    // Событие для других компонентов
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+}
+
+// ============================================
+// PWA SERVICE WORKER
+// ============================================
+
+function initServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker зарегистрирован:', registration.scope);
+            })
+            .catch(error => {
+                console.error('❌ Ошибка регистрации Service Worker:', error);
+            });
+    }
+    
+    // Отслеживание установки PWA
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.AIDA.deferredPrompt = e;
+        
+        // Показываем кнопку установки
+        const installBtn = document.getElementById('install-app');
+        if (installBtn) {
+            installBtn.style.display = 'flex';
+            installBtn.addEventListener('click', () => {
+                window.AIDA.deferredPrompt.prompt();
+                window.AIDA.deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('✅ Пользователь установил PWA');
+                    }
+                    window.AIDA.deferredPrompt = null;
+                    installBtn.style.display = 'none';
+                });
+            });
+        }
+    });
+}
+
+// ============================================
+// АВТОРИЗАЦИЯ
+// ============================================
+
+async function checkAuth() {
+    const token = window.AIDA.state.token;
+    if (!token) return;
+    
+    try {
+        const response = await fetch(`${window.AIDA.config.apiUrl}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            window.AIDA.state.user = data.user;
+            
+            // Обновляем UI для авторизованного пользователя
+            updateUIForAuth();
+        } else {
+            // Токен недействителен
+            logout();
+        }
+    } catch (error) {
+        console.error('Ошибка проверки авторизации:', error);
+    }
+}
+
+function updateUIForAuth() {
+    const user = window.AIDA.state.user;
+    if (!user) return;
+    
+    // Обновляем аватар
+    const avatarElements = document.querySelectorAll('.user-avatar');
+    avatarElements.forEach(el => {
+        el.src = user.avatar || '/images/default-avatar.png';
+        el.alt = user.name;
+    });
+    
+    // Обновляем имя пользователя
+    const nameElements = document.querySelectorAll('.user-name');
+    nameElements.forEach(el => {
+        el.textContent = user.name;
+    });
+    
+    // Показываем/скрываем элементы для авторизованных
+    document.querySelectorAll('.auth-required').forEach(el => {
+        el.style.display = 'block';
+    });
+    document.querySelectorAll('.guest-only').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Обновляем баланс бонусов
+    updateBonusBalance();
+}
+
+function updateBonusBalance() {
+    const balanceElements = document.querySelectorAll('.bonus-balance');
+    if (balanceElements.length && window.AIDA.state.user) {
+        fetch(`${window.AIDA.config.apiUrl}/bonus/balance`, {
+            headers: { 'Authorization': `Bearer ${window.AIDA.state.token}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            balanceElements.forEach(el => {
+                el.textContent = data.balance.toLocaleString();
+            });
+        })
+        .catch(console.error);
+    }
+}
+
+async function login(email, password) {
+    try {
+        const response = await fetch(`${window.AIDA.config.apiUrl}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Ошибка входа');
+        }
+        
+        const data = await response.json();
+        window.AIDA.state.token = data.token;
+        window.AIDA.state.user = data.user;
+        localStorage.setItem('token', data.token);
+        
+        // Инициализируем WebSocket
+        initWebSocket();
+        
+        // Перезагружаем страницу
+        window.location.href = '/';
+        
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+function logout() {
+    window.AIDA.state.token = null;
+    window.AIDA.state.user = null;
+    localStorage.removeItem('token');
+    
+    if (window.AIDA.state.socket) {
+        window.AIDA.state.socket.disconnect();
+        window.AIDA.state.socket = null;
+    }
+    
+    window.location.href = '/login.html';
+}
+
+// ============================================
+// WEBSOCKET
+// ============================================
+
+function initWebSocket() {
+    if (!window.AIDA.state.token) return;
+    
+    const socket = io(window.AIDA.config.wsUrl, {
+        auth: { token: window.AIDA.state.token },
+        transports: ['websocket']
+    });
+    
+    socket.on('connect', () => {
+        console.log('✅ WebSocket подключён');
+        window.AIDA.state.socket = socket;
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('❌ WebSocket отключён');
+    });
+    
+    socket.on('new_message', (data) => {
+        handleNewMessage(data);
+    });
+    
+    socket.on('new_message_notification', (data) => {
+        showToast(`Новое сообщение от ${data.senderName}`, 'info');
+        updateUnreadCount();
+    });
+    
+    socket.on('user_status', (data) => {
+        updateUserStatus(data.userId, data.status);
+    });
+    
+    socket.on('unread_count', (data) => {
+        window.AIDA.state.unreadCount = data.count;
+        updateUnreadBadge();
+    });
+    
+    return socket;
+}
+
+function updateUnreadCount() {
+    if (window.AIDA.state.socket) {
+        window.AIDA.state.socket.emit('get_unread_count');
+    }
+}
+
+function updateUnreadBadge() {
+    const badge = document.querySelector('.unread-badge');
+    const count = window.AIDA.state.unreadCount;
+    
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+// ============================================
+// УВЕДОМЛЕНИЯ
+// ============================================
+
+async function loadNotifications() {
+    try {
+        const response = await fetch(`${window.AIDA.config.apiUrl}/notifications`, {
+            headers: { 'Authorization': `Bearer ${window.AIDA.state.token}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            window.AIDA.state.notifications = data.notifications;
+            renderNotifications();
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки уведомлений:', error);
+    }
+}
+
+function renderNotifications() {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    
+    const notifications = window.AIDA.state.notifications;
+    
+    if (notifications.length === 0) {
+        container.innerHTML = '<div class="notifications-empty">Нет уведомлений</div>';
+        return;
+    }
+    
+    container.innerHTML = notifications.map(notif => `
+        <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" data-id="${notif.id}">
+            <div class="notification-icon">${getNotificationIcon(notif.type)}</div>
+            <div class="notification-content">
+                <div class="notification-title">${escapeHtml(notif.title)}</div>
+                <div class="notification-message">${escapeHtml(notif.message)}</div>
+                <div class="notification-time">${formatTime(notif.created_at)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        message: '💬',
+        like: '❤️',
+        sale: '💰',
+        system: '🔔',
+        review: '⭐',
+        lottery: '🎰'
+    };
+    return icons[type] || '📢';
+}
+
+// ============================================
+// UI КОМПОНЕНТЫ
+// ============================================
+
+function initUIComponents() {
+    // Модальные окна
+    initModals();
+    
+    // Формы
+    initForms();
+    
+    // Поиск
+    initSearch();
+    
+    // Бесконечная прокрутка
+    initInfiniteScroll();
+    
+    // Ленивая загрузка изображений
+    initLazyLoading();
+}
+
+function initModals() {
+    const modals = document.querySelectorAll('.modal');
+    const closeBtns = document.querySelectorAll('.modal-close');
+    
+    closeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.closest('.modal');
+            if (modal) modal.classList.remove('active');
+        });
+    });
+    
+    // Закрытие по клику вне модалки
+    modals.forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
+}
+
+window.openModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.add('active');
+};
+
+window.closeModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.remove('active');
+};
+
+function initForms() {
+    const forms = document.querySelectorAll('form[data-validate]');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!validateForm(form)) return;
+            
+            const submitBtn = form.querySelector('[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Загрузка...';
+            
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, {
+                    method: form.method || 'POST',
+                    body: formData,
+                    headers: form.enctype !== 'multipart/form-data' ? {
+                        'Content-Type': 'application/json'
+                    } : undefined
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message || 'Успешно!', 'success');
+                    if (form.dataset.redirect) {
+                        window.location.href = form.dataset.redirect;
+                    }
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (error) {
+                showToast('Ошибка соединения', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    });
+}
+
+function validateForm(form) {
+    const inputs = form.querySelectorAll('[data-required], [data-minlength], [data-maxlength], [data-pattern]');
+    let isValid = true;
+    
+    inputs.forEach(input => {
+        const value = input.value.trim();
+        let error = null;
+        
+        if (input.dataset.required && !value) {
+            error = 'Это поле обязательно';
+        } else if (input.dataset.minlength && value.length < parseInt(input.dataset.minlength)) {
+            error = `Минимум ${input.dataset.minlength} символов`;
+        } else if (input.dataset.maxlength && value.length > parseInt(input.dataset.maxlength)) {
+            error = `Максимум ${input.dataset.maxlength} символов`;
+        } else if (input.dataset.pattern && !new RegExp(input.dataset.pattern).test(value)) {
+            error = input.dataset.patternError || 'Неверный формат';
+        }
+        
+        const errorEl = input.parentElement?.querySelector('.input-error');
+        if (error) {
+            input.classList.add('error');
+            if (errorEl) errorEl.textContent = error;
+            isValid = false;
+        } else {
+            input.classList.remove('error');
+            if (errorEl) errorEl.textContent = '';
+        }
+    });
+    
+    // Проверка паролей
+    const password = form.querySelector('[name="password"]');
+    const confirm = form.querySelector('[name="password_confirm"]');
+    if (password && confirm && password.value !== confirm.value) {
+        showToast('Пароли не совпадают', 'error');
+        isValid = false;
+    }
+    
+    return isValid;
+}
+
+function initSearch() {
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    
+    if (!searchInput) return;
+    
+    const performSearch = () => {
+        const query = searchInput.value.trim();
+        if (query) {
+            window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
+        }
+    };
+    
+    searchBtn?.addEventListener('click', performSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch();
+    });
+    
+    // Автодополнение
+    let debounceTimer;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const query = searchInput.value.trim();
+        if (query.length < 2) return;
+        
+        debounceTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`${window.AIDA.config.apiUrl}/search/suggest?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                showSuggestions(data.suggestions);
+            } catch (error) {
+                console.error('Ошибка автодополнения:', error);
+            }
+        }, 300);
+    });
+}
+
+function initInfiniteScroll() {
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (!sentinel) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && window.AIDA.hasMore && !window.AIDA.isLoading) {
+            window.AIDA.loadMore();
+        }
+    }, { threshold: 0.1 });
+    
+    observer.observe(sentinel);
+}
+
+function initLazyLoading() {
+    const images = document.querySelectorAll('img[data-src]');
+    
+    const imageObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                imageObserver.unobserve(img);
+            }
+        });
+    });
+    
+    images.forEach(img => imageObserver.observe(img));
+}
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ
+// ============================================
+
+function initGlobalHandlers() {
+    // Клик по карточке объявления
+    document.addEventListener('click', (e) => {
+        const card = e.target.closest('.listing-card');
+        if (card && card.dataset.id) {
+            window.location.href = `/listing.html?id=${card.dataset.id}`;
+        }
+        
+        const likeBtn = e.target.closest('.like-btn');
+        if (likeBtn) {
+            e.preventDefault();
+            handleLike(likeBtn);
+        }
+        
+        const chatBtn = e.target.closest('.chat-btn');
+        if (chatBtn && chatBtn.dataset.userId) {
+            e.preventDefault();
+            startChat(chatBtn.dataset.userId, chatBtn.dataset.listingId);
+        }
+    });
+}
+
+async function handleLike(btn) {
+    const listingId = btn.dataset.id;
+    const isLiked = btn.classList.contains('liked');
+    
+    try {
+        const response = await fetch(`${window.AIDA.config.apiUrl}/listings/${listingId}/like`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.AIDA.state.token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            btn.classList.toggle('liked', data.liked);
+            
+            const countSpan = btn.querySelector('.like-count');
+            if (countSpan) countSpan.textContent = data.likesCount;
+            
+            if (data.liked) {
+                animateLike(btn);
+            }
+        } else if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('Ошибка лайка:', error);
+    }
+}
+
+function animateLike(btn) {
+    const heart = document.createElement('div');
+    heart.className = 'floating-heart';
+    heart.innerHTML = '❤️';
+    heart.style.left = `${btn.getBoundingClientRect().left}px`;
+    heart.style.top = `${btn.getBoundingClientRect().top}px`;
+    document.body.appendChild(heart);
+    setTimeout(() => heart.remove(), 1000);
+}
+
+async function startChat(userId, listingId) {
+    try {
+        const response = await fetch(`${window.AIDA.config.apiUrl}/chats`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${window.AIDA.state.token}`
+            },
+            body: JSON.stringify({ seller_id: userId, listing_id: listingId })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            window.location.href = `/chats.html?chat=${data.chat.id}`;
+        } else if (response.status === 401) {
+            window.location.href = '/login.html';
+        } else {
+            const error = await response.json();
+            showToast(error.error, 'error');
+        }
+    } catch (error) {
+        showToast('Ошибка создания чата', 'error');
+    }
+}
+
+// ============================================
+// ОНЛАЙН СТАТУС
+// ============================================
+
+function initOnlineStatus() {
+    window.addEventListener('online', () => {
+        window.AIDA.state.isOnline = true;
+        showToast('Соединение восстановлено', 'success');
+        location.reload();
+    });
+    
+    window.addEventListener('offline', () => {
+        window.AIDA.state.isOnline = false;
+        showToast('Нет соединения с интернетом', 'error');
+    });
+}
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ ТЕКУЩЕЙ СТРАНИЦЫ
+// ============================================
+
+function initCurrentPage() {
+    const path = window.location.pathname;
+    
+    if (path === '/' || path === '/index.html') {
+        initHomePage();
+    } else if (path === '/listing.html') {
+        initListingPage();
+    } else if (path === '/profile.html') {
+        initProfilePage();
+    } else if (path === '/chats.html') {
+        initChatsPage();
+    } else if (path === '/add-listing.html') {
+        initAddListingPage();
+    }
+}
+
+function initHomePage() {
+    loadListings();
+}
+
+function initListingPage() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const listingId = urlParams.get('id');
+    if (listingId) {
+        loadListing(listingId);
+    }
+}
+
+function initProfilePage() {
+    loadUserProfile();
+}
+
+function initChatsPage() {
+    loadChats();
+}
+
+function initAddListingPage() {
+    loadCategories();
+    initImageUpload();
+}
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)} д назад`;
+    
+    return date.toLocaleDateString('ru-RU');
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function formatPrice(price) {
+    return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+}
+
+// ============================================
+// ЗАГЛУШКИ (будут реализованы в других файлах)
+// ============================================
+
+async function loadListings() { console.log('loadListings'); }
+async function loadListing(id) { console.log('loadListing', id); }
+async function loadUserProfile() { console.log('loadUserProfile'); }
+async function loadChats() { console.log('loadChats'); }
+async function loadCategories() { console.log('loadCategories'); }
+function initImageUpload() { console.log('initImageUpload'); }
+function handleNewMessage(data) { console.log('handleNewMessage', data); }
+function updateUserStatus(userId, status) { console.log('updateUserStatus', userId, status); }
+function showSuggestions(suggestions) { console.log('showSuggestions', suggestions); }
+
+// ============================================
+// ЭКСПОРТ ГЛОБАЛЬНЫХ ФУНКЦИЙ
+// ============================================
+
+window.login = login;
+window.logout = logout;
+window.showToast = showToast;
+window.openModal = openModal;
+window.closeModal = closeModal;

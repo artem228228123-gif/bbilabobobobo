@@ -1,0 +1,406 @@
+/**
+ * AIDA — Премиальная доска объявлений
+ * Версия: 3.0 ULTRA
+ * Файл: client/js/sw.js (Service Worker)
+ * Описание: PWA — кеширование, офлайн-режим, push-уведомления, фоновая синхронизация
+ */
+
+const CACHE_NAME = 'aida-v3.0.0';
+const OFFLINE_URL = '/offline.html';
+
+// Файлы для кеширования при установке
+const STATIC_CACHE_URLS = [
+    '/',
+    '/index.html',
+    '/offline.html',
+    '/css/main.css',
+    '/css/mobile.css',
+    '/js/app.js',
+    '/js/auth.js',
+    '/js/listings.js',
+    '/js/helpers.js',
+    '/manifest.json',
+    '/images/logo-192.png',
+    '/images/logo-512.png',
+    '/images/default-avatar.png',
+    '/images/placeholder.jpg',
+    '/fonts/inter.woff2'
+];
+
+// API endpoints для кеширования (только GET)
+const API_CACHE_URLS = [
+    '/api/v1/categories',
+    '/api/v1/cities/popular'
+];
+
+// ============================================
+// УСТАНОВКА SERVICE WORKER
+// ============================================
+
+self.addEventListener('install', (event) => {
+    console.log('[SW] Установка Service Worker');
+    
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('[SW] Кеширование статических файлов');
+                return cache.addAll(STATIC_CACHE_URLS);
+            })
+            .then(() => {
+                // Кешируем офлайн страницу отдельно
+                return caches.open(CACHE_NAME).then(cache => cache.add(OFFLINE_URL));
+            })
+            .then(() => {
+                console.log('[SW] Кеширование завершено');
+                return self.skipWaiting();
+            })
+            .catch((error) => {
+                console.error('[SW] Ошибка кеширования:', error);
+            })
+    );
+});
+
+// ============================================
+// АКТИВАЦИЯ SERVICE WORKER
+// ============================================
+
+self.addEventListener('activate', (event) => {
+    console.log('[SW] Активация Service Worker');
+    
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('[SW] Удаление старого кеша:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+        .then(() => {
+            console.log('[SW] Service Worker активирован');
+            return self.clients.claim();
+        })
+    );
+});
+
+// ============================================
+// ОБРАБОТКА ЗАПРОСОВ (СТРАТЕГИЯ STALE-WHILE-REVALIDATE)
+// ============================================
+
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    
+    // Пропускаем не GET запросы
+    if (event.request.method !== 'GET') return;
+    
+    // Пропускаем запросы к API (кроме разрешённых)
+    if (url.pathname.startsWith('/api/') && !API_CACHE_URLS.includes(url.pathname)) {
+        return;
+    }
+    
+    // Пропускаем запросы к аналитике
+    if (url.pathname.includes('/analytics/')) return;
+    
+    event.respondWith(
+        caches.open(CACHE_NAME).then(async (cache) => {
+            // Пытаемся получить из кеша
+            const cachedResponse = await cache.match(event.request);
+            
+            // Сетевой запрос для обновления кеша
+            const fetchPromise = fetch(event.request.clone())
+                .then((networkResponse) => {
+                    // Кешируем успешные ответы
+                    if (networkResponse && networkResponse.status === 200) {
+                        cache.put(event.request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                })
+                .catch((error) => {
+                    console.log('[SW] Ошибка сети:', error);
+                    
+                    // Если запрос к странице и нет кеша — показываем офлайн страницу
+                    if (event.request.mode === 'navigate' && !cachedResponse) {
+                        return cache.match(OFFLINE_URL);
+                    }
+                    return null;
+                });
+            
+            // Возвращаем кеш или сетевой ответ
+            return cachedResponse || fetchPromise;
+        })
+    );
+});
+
+// ============================================
+// ОФЛАЙН СТРАНИЦА ДЛЯ НАВИГАЦИИ
+// ============================================
+
+self.addEventListener('fetch', (event) => {
+    // Только для навигационных запросов (переход по страницам)
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                return caches.open(CACHE_NAME).then((cache) => {
+                    return cache.match(OFFLINE_URL);
+                });
+            })
+        );
+    }
+});
+
+// ============================================
+// ФОНОВАЯ СИНХРОНИЗАЦИЯ
+// ============================================
+
+self.addEventListener('sync', (event) => {
+    console.log('[SW] Фоновая синхронизация:', event.tag);
+    
+    if (event.tag === 'sync-listings') {
+        event.waitUntil(syncListings());
+    } else if (event.tag === 'sync-messages') {
+        event.waitUntil(syncMessages());
+    }
+});
+
+async function syncListings() {
+    console.log('[SW] Синхронизация объявлений');
+    
+    try {
+        const cache = await caches.open(CACHE_NAME);
+        const requests = await cache.keys();
+        
+        const pendingListings = requests.filter(req => 
+            req.url.includes('/api/v1/listings') && 
+            req.method === 'POST' &&
+            req.url.includes('pending=true')
+        );
+        
+        for (const request of pendingListings) {
+            const response = await fetch(request.clone());
+            if (response.ok) {
+                await cache.delete(request);
+            }
+        }
+        
+        console.log(`[SW] Синхронизировано ${pendingListings.length} объявлений`);
+    } catch (error) {
+        console.error('[SW] Ошибка синхронизации объявлений:', error);
+    }
+}
+
+async function syncMessages() {
+    console.log('[SW] Синхронизация сообщений');
+    
+    try {
+        const cache = await caches.open(CACHE_NAME);
+        const requests = await cache.keys();
+        
+        const pendingMessages = requests.filter(req => 
+            req.url.includes('/api/v1/chats') && 
+            req.url.includes('/messages') &&
+            req.method === 'POST'
+        );
+        
+        for (const request of pendingMessages) {
+            const response = await fetch(request.clone());
+            if (response.ok) {
+                await cache.delete(request);
+            }
+        }
+        
+        console.log(`[SW] Синхронизировано ${pendingMessages.length} сообщений`);
+    } catch (error) {
+        console.error('[SW] Ошибка синхронизации сообщений:', error);
+    }
+}
+
+// ============================================
+// PUSH УВЕДОМЛЕНИЯ
+// ============================================
+
+self.addEventListener('push', (event) => {
+    console.log('[SW] Получено push-уведомление:', event);
+    
+    let data = {};
+    
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (e) {
+            data = {
+                title: 'АЙДА',
+                body: event.data.text(),
+                icon: '/images/logo-192.png',
+                badge: '/images/badge.png'
+            };
+        }
+    }
+    
+    const options = {
+        body: data.body || 'Новое уведомление',
+        icon: data.icon || '/images/logo-192.png',
+        badge: data.badge || '/images/badge.png',
+        vibrate: [200, 100, 200],
+        data: {
+            url: data.url || '/',
+            notificationId: data.id || Date.now()
+        },
+        actions: data.actions || [
+            {
+                action: 'open',
+                title: 'Открыть'
+            },
+            {
+                action: 'dismiss',
+                title: 'Закрыть'
+            }
+        ],
+        tag: data.tag || 'aida-notification',
+        renotify: true,
+        requireInteraction: data.requireInteraction || false,
+        silent: data.silent || false
+    };
+    
+    event.waitUntil(
+        self.registration.showNotification(data.title || 'АЙДА', options)
+    );
+});
+
+// Обработка клика по уведомлению
+self.addEventListener('notificationclick', (event) => {
+    console.log('[SW] Клик по уведомлению:', event);
+    
+    event.notification.close();
+    
+    const urlToOpen = event.notification.data?.url || '/';
+    
+    event.waitUntil(
+        clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true
+        }).then((windowClients) => {
+            // Проверяем, открыта ли уже страница
+            for (const client of windowClients) {
+                if (client.url === urlToOpen && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Открываем новую вкладку
+            if (clients.openWindow) {
+                return clients.openWindow(urlToOpen);
+            }
+        })
+    );
+});
+
+// Закрытие уведомления по действию
+self.addEventListener('notificationclose', (event) => {
+    console.log('[SW] Уведомление закрыто:', event);
+});
+
+// ============================================
+// ПЕРИОДИЧЕСКАЯ ФОНОВАЯ СИНХРОНИЗАЦИЯ
+// ============================================
+
+self.addEventListener('periodicsync', (event) => {
+    console.log('[SW] Периодическая синхронизация:', event.tag);
+    
+    if (event.tag === 'update-listings') {
+        event.waitUntil(updateListingsCache());
+    }
+});
+
+async function updateListingsCache() {
+    console.log('[SW] Обновление кеша объявлений');
+    
+    try {
+        const response = await fetch('/api/v1/listings?limit=20');
+        if (response.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put('/api/v1/listings?limit=20', response);
+            console.log('[SW] Кеш объявлений обновлён');
+        }
+    } catch (error) {
+        console.error('[SW] Ошибка обновления кеша:', error);
+    }
+}
+
+// ============================================
+// ОБРАБОТКА СООБЩЕНИЙ ОТ КЛИЕНТА
+// ============================================
+
+self.addEventListener('message', (event) => {
+    console.log('[SW] Получено сообщение от клиента:', event.data);
+    
+    if (event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+    
+    if (event.data.type === 'CLEAR_CACHE') {
+        event.waitUntil(clearCache());
+    }
+    
+    if (event.data.type === 'GET_VERSION') {
+        event.ports[0].postMessage({ version: CACHE_NAME });
+    }
+});
+
+async function clearCache() {
+    console.log('[SW] Очистка кеша');
+    
+    const cacheNames = await caches.keys();
+    await Promise.all(
+        cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME) {
+                return caches.delete(cacheName);
+            }
+        })
+    );
+    
+    // Перекешируем статические файлы
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(STATIC_CACHE_URLS);
+    
+    console.log('[SW] Кеш очищен и восстановлен');
+}
+
+// ============================================
+// ПРОВЕРКА ОБНОВЛЕНИЙ
+// ============================================
+
+self.addEventListener('fetch', (event) => {
+    // Проверяем обновления при загрузке главной страницы
+    if (event.request.url.includes('/index.html')) {
+        event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, networkResponse.clone());
+                        });
+                        
+                        // Проверяем, есть ли обновления SW
+                        self.registration.update();
+                    }
+                    return networkResponse;
+                }).catch(() => cachedResponse);
+                
+                return cachedResponse || fetchPromise;
+            })
+        );
+    }
+});
+
+// ============================================
+// ЛОГИРОВАНИЕ
+// ============================================
+
+self.addEventListener('error', (event) => {
+    console.error('[SW] Ошибка:', event.error);
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+    console.error('[SW] Необработанное отклонение промиса:', event.reason);
+});
